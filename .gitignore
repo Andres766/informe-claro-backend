@@ -1,0 +1,16 @@
+# Entorno y secretos
+.venv/
+.env
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Bases de datos locales (SQLite)
+*.db
+
+# Editor / SO
+.vscode/
+.DS_Store
+Thumbs.db
