@@ -12,7 +12,11 @@ import pdfplumber
 
 
 class PDFInvalidoError(ValueError):
-    pass
+    """`clave` identifica el mensaje traducible (ver app/i18n.py)."""
+
+    def __init__(self, clave: str):
+        super().__init__(clave)
+        self.clave = clave
 
 
 def extraer_texto(contenido: bytes) -> str:
@@ -20,13 +24,11 @@ def extraer_texto(contenido: bytes) -> str:
         with pdfplumber.open(io.BytesIO(contenido)) as pdf:
             paginas = [p.extract_text() or "" for p in pdf.pages]
     except Exception as exc:  # pdfplumber lanza varios tipos según el daño del archivo
-        raise PDFInvalidoError("No se pudo leer el PDF. ¿Es un archivo válido?") from exc
+        raise PDFInvalidoError("pdf_ilegible") from exc
 
     texto = "\n".join(paginas).strip()
     if not texto:
-        raise PDFInvalidoError(
-            "El PDF no contiene texto seleccionable (posiblemente es una imagen escaneada)."
-        )
+        raise PDFInvalidoError("pdf_sin_texto")
     return texto
 
 

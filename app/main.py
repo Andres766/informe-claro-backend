@@ -7,7 +7,7 @@ Flujo de POST /api/informes:
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
@@ -17,6 +17,7 @@ from .auth import router as auth_router
 from .auth import usuario_actual
 from .config import settings
 from .database import Base, engine, get_db, migrar_columnas_nuevas
+from .i18n import normalizar_idioma, t
 from .schemas import InformeDetalleOut, InformeResumenOut
 from .services.pdf_parser import PDFInvalidoError, anonimizar, extraer_texto
 from .services.prompt_orchestrator import AVISO_MEDICO, interpretar
@@ -53,14 +54,19 @@ def _detalle(informe: models.InformeCargado) -> InformeDetalleOut:
     )
 
 
-def _informe_del_usuario(informe_id: int, usuario: models.Usuario, db: Session) -> models.InformeCargado:
+def idioma_peticion(accept_language: str | None = Header(None)) -> str:
+    """Idioma de los mensajes de la API según el encabezado Accept-Language."""
+    return normalizar_idioma(accept_language)
+
+
+def _informe_del_usuario(informe_id: int, usuario: models.Usuario, db: Session, idioma: str) -> models.InformeCargado:
     informe = db.scalar(
         select(models.InformeCargado)
         .where(models.InformeCargado.id == informe_id, models.InformeCargado.usuario_id == usuario.id)
         .options(selectinload(models.InformeCargado.valores), selectinload(models.InformeCargado.preguntas))
     )
     if not informe:
-        raise HTTPException(404, "Informe no encontrado")
+        raise HTTPException(404, t("informe_no_encontrado", idioma))
     return informe
 
 
@@ -74,23 +80,24 @@ async def subir_informe(
     archivo: UploadFile = File(...),
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(usuario_actual),
+    idioma: str = Depends(idioma_peticion),
 ):
     if archivo.content_type != "application/pdf" and not (archivo.filename or "").lower().endswith(".pdf"):
-        raise HTTPException(415, "Solo se aceptan archivos PDF")
+        raise HTTPException(415, t("solo_pdf", idioma))
 
     contenido = await archivo.read()
     if len(contenido) > settings.max_pdf_mb * 1024 * 1024:
-        raise HTTPException(413, f"El PDF supera {settings.max_pdf_mb} MB")
+        raise HTTPException(413, t("pdf_grande", idioma, mb=settings.max_pdf_mb))
 
     try:
         texto = extraer_texto(contenido)
     except PDFInvalidoError as exc:
-        raise HTTPException(422, str(exc))
+        raise HTTPException(422, t(exc.clave, idioma))
     del contenido  # el PDF original no se conserva
 
     resultado = interpretar(anonimizar(texto))
     if not resultado.valores:
-        raise HTTPException(422, "No se encontraron valores de laboratorio en el PDF")
+        raise HTTPException(422, t("sin_valores", idioma))
 
     informe = models.InformeCargado(
         usuario_id=usuario.id,
@@ -130,11 +137,21 @@ def listar_informes(db: Session = Depends(get_db), usuario: models.Usuario = Dep
 
 
 @app.get("/api/informes/{informe_id}", response_model=InformeDetalleOut)
-def ver_informe(informe_id: int, db: Session = Depends(get_db), usuario: models.Usuario = Depends(usuario_actual)):
-    return _detalle(_informe_del_usuario(informe_id, usuario, db))
+def ver_informe(
+    informe_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(usuario_actual),
+    idioma: str = Depends(idioma_peticion),
+):
+    return _detalle(_informe_del_usuario(informe_id, usuario, db, idioma))
 
 
 @app.delete("/api/informes/{informe_id}", status_code=204)
-def eliminar_informe(informe_id: int, db: Session = Depends(get_db), usuario: models.Usuario = Depends(usuario_actual)):
-    db.delete(_informe_del_usuario(informe_id, usuario, db))
+def eliminar_informe(
+    informe_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(usuario_actual),
+    idioma: str = Depends(idioma_peticion),
+):
+    db.delete(_informe_del_usuario(informe_id, usuario, db, idioma))
     db.commit()

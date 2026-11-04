@@ -172,3 +172,13 @@ def test_idioma_por_defecto_configurable(monkeypatch):
     assert normalizar_idioma("de-DE") == "en"
     with pytest.raises(ValueError):
         Settings(idioma_por_defecto="fr")
+
+
+def test_errores_de_informes_en_ingles(client):
+    en = {"Accept-Language": "en-US,en;q=0.9"}
+    r = client.post("/api/informes", files={"archivo": ("notes.txt", b"hi", "text/plain")}, headers=en)
+    assert r.status_code == 415 and r.json()["detail"] == "Only PDF files are accepted"
+    r = client.post("/api/informes", files={"archivo": ("roto.pdf", b"no es pdf", "application/pdf")}, headers=en)
+    assert r.status_code == 422 and r.json()["detail"] == "The PDF could not be read. Is it a valid file?"
+    assert client.get("/api/informes/99999", headers=en).json()["detail"] == "Report not found"
+    assert client.get("/api/informes/99999").json()["detail"] == "Informe no encontrado"
