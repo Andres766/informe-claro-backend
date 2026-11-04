@@ -226,3 +226,22 @@ def test_el_informe_guarda_el_idioma_pedido(client):
         r = client.post("/api/informes", headers={"Accept-Language": "en-GB"},
                         files={"archivo": ("informe_ejemplo.pdf", f, "application/pdf")})
     assert r.json()["idioma"] == "en"
+
+
+@pytest.mark.parametrize("nombre,idioma,fragmento", [
+    ("Glucosa en ayunas", "es", "azúcar en la sangre"),
+    ("Glucosa en ayunas", "en", "sugar in your blood"),
+    ("Fasting glucose", "en", "sugar in your blood"),
+    ("Hemoglobina glicosilada", "en", "two to three months"),
+    ("Hemoglobina", "en", "carries oxygen"),
+    ("Vitamina D", "es", "calcio"),
+    ("Platelet count", "en", "clot"),
+])
+def test_glosario_bilingue(nombre, idioma, fragmento):
+    from app.services.prompt_orchestrator import _que_mide
+    assert fragmento in _que_mide(nombre, idioma)
+
+
+def test_glosario_sin_coincidencia():
+    from app.services.prompt_orchestrator import _que_mide
+    assert _que_mide("Ferritina", "en") is None

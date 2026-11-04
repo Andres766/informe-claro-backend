@@ -153,21 +153,65 @@ def _interpretar_con_llm(texto: str) -> Interpretacion:
 
 # --- Motor por reglas (modo demo / respaldo) -------------------------------
 
-_GLOSARIO = {
-    "glucosa": "mide la cantidad de azúcar en la sangre, que el cuerpo usa como fuente de energía",
-    "colesterol total": "mide el total de colesterol, un tipo de grasa que el cuerpo necesita en cierta cantidad",
-    "hdl": "mide el colesterol HDL, conocido como 'colesterol bueno' porque ayuda a retirar grasa de las arterias",
-    "ldl": "mide el colesterol LDL, la parte del colesterol que puede acumularse en las paredes de las arterias",
-    "triglic": "mide los triglicéridos, otro tipo de grasa en la sangre que viene en parte de lo que comemos",
-    "hemoglobina": "mide la proteína de los glóbulos rojos que transporta el oxígeno por el cuerpo",
-    "hematocrito": "indica qué porcentaje de la sangre está formado por glóbulos rojos",
-    "leucocitos": "cuenta los glóbulos blancos, las células que participan en las defensas del cuerpo",
-    "plaquetas": "cuenta las plaquetas, las células que ayudan a que la sangre coagule",
-    "creatinina": "mide un desecho de los músculos que los riñones filtran; se usa para valorar su funcionamiento",
-    "tsh": "mide una hormona que regula el funcionamiento de la glándula tiroides",
-    "ácido úrico": "mide una sustancia de desecho que el cuerpo produce al procesar ciertos alimentos",
-    "acido urico": "mide una sustancia de desecho que el cuerpo produce al procesar ciertos alimentos",
-}
+# Qué mide cada examen. Las claves cubren el nombre en español y en inglés
+# para reconocer informes en cualquiera de los dos idiomas.
+_GLOSARIO = [
+    (("glucosa", "glucose"),
+     "mide la cantidad de azúcar en la sangre, que el cuerpo usa como fuente de energía",
+     "measures the amount of sugar in your blood, which your body uses for energy"),
+    (("colesterol total", "total cholesterol"),
+     "mide el total de colesterol, un tipo de grasa que el cuerpo necesita en cierta cantidad",
+     "measures your total cholesterol, a type of fat your body needs in a certain amount"),
+    (("hdl",),
+     "mide el colesterol HDL, conocido como 'colesterol bueno' porque ayuda a retirar grasa de las arterias",
+     "measures HDL cholesterol, known as 'good cholesterol' because it helps remove fat from the arteries"),
+    (("ldl",),
+     "mide el colesterol LDL, la parte del colesterol que puede acumularse en las paredes de las arterias",
+     "measures LDL cholesterol, the part of cholesterol that can build up on artery walls"),
+    (("triglic", "triglycer"),
+     "mide los triglicéridos, otro tipo de grasa en la sangre que viene en parte de lo que comemos",
+     "measures triglycerides, another type of fat in the blood that comes partly from what we eat"),
+    (("hemoglobina glicosilada", "a1c", "glycated"),
+     "refleja el promedio de azúcar en la sangre de los últimos dos a tres meses",
+     "reflects your average blood sugar over the last two to three months"),
+    (("hemoglobina", "hemoglobin", "haemoglobin"),
+     "mide la proteína de los glóbulos rojos que transporta el oxígeno por el cuerpo",
+     "measures the protein in red blood cells that carries oxygen around the body"),
+    (("hematocrito", "hematocrit"),
+     "indica qué porcentaje de la sangre está formado por glóbulos rojos",
+     "shows what percentage of your blood is made up of red blood cells"),
+    (("leucocitos", "white blood", "wbc", "leukocyte"),
+     "cuenta los glóbulos blancos, las células que participan en las defensas del cuerpo",
+     "counts white blood cells, the cells that help your body defend itself"),
+    (("plaquetas", "platelet"),
+     "cuenta las plaquetas, las células que ayudan a que la sangre coagule",
+     "counts platelets, the cells that help your blood clot"),
+    (("creatinina", "creatinine"),
+     "mide un desecho de los músculos que los riñones filtran; se usa para valorar su funcionamiento",
+     "measures a waste product from muscles that the kidneys filter; it is used to check how they work"),
+    (("tsh",),
+     "mide una hormona que regula el funcionamiento de la glándula tiroides",
+     "measures a hormone that regulates how the thyroid gland works"),
+    (("ácido úrico", "acido urico", "uric acid"),
+     "mide una sustancia de desecho que el cuerpo produce al procesar ciertos alimentos",
+     "measures a waste substance the body makes when it processes certain foods"),
+    (("vitamina d", "vitamin d"),
+     "mide la vitamina D, que ayuda al cuerpo a aprovechar el calcio de los huesos",
+     "measures vitamin D, which helps your body use calcium for your bones"),
+    (("vitamina b12", "vitamin b12"),
+     "mide la vitamina B12, que participa en la formación de la sangre y en el sistema nervioso",
+     "measures vitamin B12, which is involved in making blood and in the nervous system"),
+]
+
+
+def _que_mide(nombre: str, idioma: str = "es") -> str | None:
+    """Descripción sencilla del examen en el idioma pedido, o None si no está en el glosario."""
+    nombre = nombre.lower()
+    for claves, es, en in _GLOSARIO:
+        if any(clave in nombre for clave in claves):
+            return en if idioma == "en" else es
+    return None
+
 
 _FRASE_ESTADO = {
     "normal": "Tu resultado ({v}) está dentro del rango de referencia del laboratorio ({r}).",
@@ -180,8 +224,7 @@ _FRASE_ESTADO = {
 
 
 def _explicar_por_reglas(ve: ValorExtraido, estado: str) -> str:
-    nombre = ve.nombre_valor.lower()
-    que_mide = next((d for clave, d in _GLOSARIO.items() if clave in nombre), None)
+    que_mide = _que_mide(ve.nombre_valor)
     base = f"Este examen {que_mide}. " if que_mide else ""
     valor = f"{ve.valor} {ve.unidad}".strip()
     return base + _FRASE_ESTADO[estado].format(v=valor, r=ve.rango_referencia)
