@@ -131,3 +131,12 @@ def test_un_usuario_no_ve_ni_borra_informes_de_otro(client):
     assert client.get(f"/api/informes/{propio['id']}", headers=intruso).status_code == 404
     assert client.delete(f"/api/informes/{propio['id']}", headers=intruso).status_code == 404
     assert client.get(f"/api/informes/{propio['id']}").status_code == 200
+
+
+def test_preguntas_del_modo_demo_concuerdan_en_numero_y_conservan_siglas():
+    from app.services.prompt_orchestrator import _pregunta_fuera_de_rango
+    assert _pregunta_fuera_de_rango("Triglicéridos", "alto") == \
+        "¿Qué significa para mí que mis triglicéridos estén por encima del rango de referencia?"
+    assert _pregunta_fuera_de_rango("Vitamina D", "bajo") == \
+        "¿Qué significa para mí que mi vitamina D esté por debajo del rango de referencia?"
+    assert "mi colesterol HDL esté" in _pregunta_fuera_de_rango("Colesterol HDL", "bajo")

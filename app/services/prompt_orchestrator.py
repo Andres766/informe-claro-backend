@@ -185,8 +185,25 @@ def _explicar_por_reglas(ve: ValorExtraido, estado: str) -> str:
 
 
 def _nombre_en_frase(nombre: str) -> str:
-    """'Colesterol LDL' -> 'colesterol LDL' (conserva las siglas en mayúscula)."""
-    return " ".join(p if p.isupper() and len(p) > 1 else p.lower() for p in nombre.split())
+    """'Colesterol LDL' -> 'colesterol LDL', 'Vitamina D' -> 'vitamina D' (conserva siglas y letras sueltas)."""
+    palabras = nombre.split()
+    return " ".join(
+        p if i > 0 and (p.isupper() or len(p) == 1) else p.lower()
+        for i, p in enumerate(palabras)
+    )
+
+
+def _es_plural(nombre: str) -> bool:
+    """'Triglicéridos', 'Leucocitos', 'Plaquetas' -> True (para decir «mis … estén»)."""
+    primera = nombre.split()[0].lower() if nombre.split() else ""
+    return primera.endswith("s") and len(primera) > 3
+
+
+def _pregunta_fuera_de_rango(nombre: str, estado: str) -> str:
+    plural = _es_plural(nombre)
+    posicion = "por encima" if estado == "alto" else "por debajo"
+    return (f"¿Qué significa para mí que {'mis' if plural else 'mi'} {_nombre_en_frase(nombre)} "
+            f"{'estén' if plural else 'esté'} {posicion} del rango de referencia?")
 
 
 def _interpretar_por_reglas(texto: str, motor: str) -> Interpretacion:
@@ -200,11 +217,7 @@ def _interpretar_por_reglas(texto: str, motor: str) -> Interpretacion:
         ))
 
     fuera = [v for v in valores if v.estado in ("alto", "bajo")]
-    preguntas = [
-        f"¿Qué significa para mí que mi {_nombre_en_frase(v.nombre_valor)} esté "
-        f"{'por encima' if v.estado == 'alto' else 'por debajo'} del rango de referencia?"
-        for v in fuera[:4]
-    ]
+    preguntas = [_pregunta_fuera_de_rango(v.nombre_valor, v.estado) for v in fuera[:4]]
     preguntas += [
         "¿Alguno de estos resultados requiere un examen de control? ¿Cuándo debería repetirlo?",
         "¿Cómo se comparan estos resultados con mis exámenes anteriores?",
