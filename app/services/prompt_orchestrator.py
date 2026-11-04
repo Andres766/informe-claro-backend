@@ -214,20 +214,44 @@ def _que_mide(nombre: str, idioma: str = "es") -> str | None:
 
 
 _FRASE_ESTADO = {
-    "normal": "Tu resultado ({v}) está dentro del rango de referencia del laboratorio ({r}).",
-    "alto": "Tu resultado ({v}) está por encima del rango de referencia del laboratorio ({r}). "
-            "Es un buen tema para conversar con tu médico.",
-    "bajo": "Tu resultado ({v}) está por debajo del rango de referencia del laboratorio ({r}). "
-            "Es un buen tema para conversar con tu médico.",
-    "sin_rango": "El informe no trae un rango de referencia claro para este valor ({v}).",
+    "es": {
+        "normal": "Tu resultado ({v}) está dentro del rango de referencia del laboratorio ({r}).",
+        "alto": "Tu resultado ({v}) está por encima del rango de referencia del laboratorio ({r}). "
+                "Es un buen tema para conversar con tu médico.",
+        "bajo": "Tu resultado ({v}) está por debajo del rango de referencia del laboratorio ({r}). "
+                "Es un buen tema para conversar con tu médico.",
+        "sin_rango": "El informe no trae un rango de referencia claro para este valor ({v}).",
+    },
+    "en": {
+        "normal": "Your result ({v}) is within the laboratory's reference range ({r}).",
+        "alto": "Your result ({v}) is above the laboratory's reference range ({r}). "
+                "It is a good topic to talk about with your doctor.",
+        "bajo": "Your result ({v}) is below the laboratory's reference range ({r}). "
+                "It is a good topic to talk about with your doctor.",
+        "sin_rango": "The report does not include a clear reference range for this value ({v}).",
+    },
+}
+
+_PREGUNTAS_GENERALES = {
+    "es": [
+        "¿Alguno de estos resultados requiere un examen de control? ¿Cuándo debería repetirlo?",
+        "¿Cómo se comparan estos resultados con mis exámenes anteriores?",
+    ],
+    "en": [
+        "Do any of these results need a follow-up test? When should I repeat it?",
+        "How do these results compare with my previous tests?",
+    ],
 }
 
 
-def _explicar_por_reglas(ve: ValorExtraido, estado: str) -> str:
-    que_mide = _que_mide(ve.nombre_valor)
-    base = f"Este examen {que_mide}. " if que_mide else ""
+def _explicar_por_reglas(ve: ValorExtraido, estado: str, idioma: str = "es") -> str:
+    que_mide = _que_mide(ve.nombre_valor, idioma)
+    if que_mide:
+        base = f"This test {que_mide}. " if idioma == "en" else f"Este examen {que_mide}. "
+    else:
+        base = ""
     valor = f"{ve.valor} {ve.unidad}".strip()
-    return base + _FRASE_ESTADO[estado].format(v=valor, r=ve.rango_referencia)
+    return base + _FRASE_ESTADO[idioma][estado].format(v=valor, r=ve.rango_referencia)
 
 
 def _nombre_en_frase(nombre: str) -> str:
@@ -245,31 +269,41 @@ def _es_plural(nombre: str) -> bool:
     return primera.endswith("s") and len(primera) > 3
 
 
-def _pregunta_fuera_de_rango(nombre: str, estado: str) -> str:
+def _pregunta_fuera_de_rango(nombre: str, estado: str, idioma: str = "es") -> str:
     plural = _es_plural(nombre)
+    if idioma == "en":
+        posicion = "above" if estado == "alto" else "below"
+        return (f"What does it mean for me that my {_nombre_en_frase(nombre)} "
+                f"{'are' if plural else 'is'} {posicion} the reference range?")
     posicion = "por encima" if estado == "alto" else "por debajo"
     return (f"¿Qué significa para mí que {'mis' if plural else 'mi'} {_nombre_en_frase(nombre)} "
             f"{'estén' if plural else 'esté'} {posicion} del rango de referencia?")
 
 
-def _interpretar_por_reglas(texto: str, motor: str) -> Interpretacion:
+def _interpretar_por_reglas(texto: str, motor: str, idioma: str = "es") -> Interpretacion:
     valores = []
     for ve in extraer_valores_por_reglas(texto):
         estado = clasificar(ve.valor, ve.rango_referencia)
         valores.append(ValorFinal(
             nombre_valor=ve.nombre_valor, valor=ve.valor, unidad=ve.unidad,
             rango_referencia=ve.rango_referencia, estado=estado,
-            explicacion=_explicar_por_reglas(ve, estado),
+            explicacion=_explicar_por_reglas(ve, estado, idioma),
         ))
 
     fuera = [v for v in valores if v.estado in ("alto", "bajo")]
-    preguntas = [_pregunta_fuera_de_rango(v.nombre_valor, v.estado) for v in fuera[:4]]
-    preguntas += [
-        "¿Alguno de estos resultados requiere un examen de control? ¿Cuándo debería repetirlo?",
-        "¿Cómo se comparan estos resultados con mis exámenes anteriores?",
-    ]
+    preguntas = [_pregunta_fuera_de_rango(v.nombre_valor, v.estado, idioma) for v in fuera[:4]]
+    preguntas += _PREGUNTAS_GENERALES[idioma]
 
-    if not valores:
+    if idioma == "en":
+        if not valores:
+            resumen = "No values in the expected format were found in this report."
+        elif fuera:
+            resumen = (f"Your report has {len(valores)} values; {len(fuera)} are outside the laboratory's "
+                       "reference range. That alone does not mean something is wrong: review the suggested "
+                       "questions for your next appointment.")
+        else:
+            resumen = f"Your report has {len(valores)} values and all of them are within the reference range."
+    elif not valores:
         resumen = "No se encontraron valores con el formato esperado en este informe."
     elif fuera:
         resumen = (f"Tu informe tiene {len(valores)} valores; {len(fuera)} están fuera del rango "
@@ -284,9 +318,9 @@ def _interpretar_por_reglas(texto: str, motor: str) -> Interpretacion:
 def interpretar(texto_anonimizado: str, idioma: str = "es") -> Interpretacion:
     """Interpreta el informe; `idioma` ("es" o "en") es el idioma de la explicación."""
     if not settings.anthropic_api_key:
-        return _interpretar_por_reglas(texto_anonimizado, motor="demo (reglas)")
+        return _interpretar_por_reglas(texto_anonimizado, motor="demo (reglas)", idioma=idioma)
     try:
         return _interpretar_con_llm(texto_anonimizado)
     except (anthropic.APIError, RuntimeError) as exc:
         log.error("Fallo en el LLM, se usa el motor por reglas: %s", exc)
-        return _interpretar_por_reglas(texto_anonimizado, motor="respaldo (reglas)")
+        return _interpretar_por_reglas(texto_anonimizado, motor="respaldo (reglas)", idioma=idioma)

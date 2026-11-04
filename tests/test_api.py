@@ -245,3 +245,17 @@ def test_glosario_bilingue(nombre, idioma, fragmento):
 def test_glosario_sin_coincidencia():
     from app.services.prompt_orchestrator import _que_mide
     assert _que_mide("Ferritina", "en") is None
+
+
+def test_modo_demo_en_ingles(client):
+    with PDF_EJEMPLO.open("rb") as f:
+        r = client.post("/api/informes", data={"idioma": "en"},
+                        files={"archivo": ("informe_ejemplo.pdf", f, "application/pdf")})
+    informe = r.json()
+    glucosa = next(v for v in informe["valores"] if v["nombre_valor"] == "Glucosa en ayunas")
+    assert glucosa["explicacion_ia"].startswith("This test measures the amount of sugar")
+    assert "above the laboratory's reference range" in glucosa["explicacion_ia"]
+    assert informe["resumen"].startswith("Your report has 12 values; 4 are outside")
+    preguntas = [p["texto_pregunta"] for p in informe["preguntas"]]
+    assert "What does it mean for me that my hemoglobina is below the reference range?" in preguntas
+    assert "How do these results compare with my previous tests?" in preguntas
