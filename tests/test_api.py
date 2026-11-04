@@ -324,3 +324,23 @@ def test_el_ejemplo_en_ingles_se_extrae_y_se_anonimiza():
     valores = {v.nombre_valor: clasificar(v.valor, v.rango_referencia) for v in extraer_valores_por_reglas(texto)}
     assert len(valores) == 10
     assert valores["Total cholesterol"] == "alto" and valores["Platelet count"] == "bajo"
+
+
+@pytest.mark.parametrize("idioma,inicio,pregunta", [
+    ("en", "This test measures your total cholesterol",
+     "What does it mean for me that my total cholesterol is above the reference range?"),
+    ("es", "Este examen mide el total de colesterol",
+     "¿Qué significa para mí que mi total cholesterol esté por encima del rango de referencia?"),
+])
+def test_flujo_completo_con_informe_en_ingles(client, idioma, inicio, pregunta):
+    ruta = PDF_EJEMPLO.parent / "lab_report_example.pdf"
+    with ruta.open("rb") as f:
+        r = client.post("/api/informes", data={"idioma": idioma},
+                        files={"archivo": ("lab_report_example.pdf", f, "application/pdf")})
+    assert r.status_code == 201, r.text
+    informe = r.json()
+    assert informe["idioma"] == idioma and len(informe["valores"]) == 10
+    colesterol = next(v for v in informe["valores"] if v["nombre_valor"] == "Total cholesterol")
+    assert colesterol["estado"] == "alto" and colesterol["explicacion_ia"].startswith(inicio)
+    assert pregunta in [p["texto_pregunta"] for p in informe["preguntas"]]
+    assert client.delete(f"/api/informes/{informe['id']}").status_code == 204
