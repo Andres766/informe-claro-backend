@@ -77,9 +77,11 @@ def test_flujo_completo(client):
     assert estados["Glucosa en ayunas"] == "alto"
     assert estados["Hemoglobina"] == "bajo"
     assert informe["preguntas"] and "médico" in informe["aviso"]
+    assert informe["idioma"] == "es"
 
     historial = client.get("/api/informes").json()
     assert historial[0]["id"] == informe["id"] and historial[0]["fuera_de_rango"] == 4
+    assert historial[0]["idioma"] == "es"
 
     assert client.get(f"/api/informes/{informe['id']}").status_code == 200
     assert client.delete(f"/api/informes/{informe['id']}").status_code == 204

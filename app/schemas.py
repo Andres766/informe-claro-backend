@@ -55,6 +55,7 @@ class InformeResumenOut(BaseModel):
     nombre_archivo: str
     fecha_carga: datetime
     motor: str
+    idioma: str
     total_valores: int
     fuera_de_rango: int
 
@@ -66,6 +67,7 @@ class InformeDetalleOut(BaseModel):
     nombre_archivo: str
     fecha_carga: datetime
     motor: str
+    idioma: str
     resumen: str
     valores: list[ValorOut]
     preguntas: list[PreguntaOut]

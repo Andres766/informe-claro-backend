@@ -47,6 +47,7 @@ def _detalle(informe: models.InformeCargado) -> InformeDetalleOut:
         nombre_archivo=informe.nombre_archivo,
         fecha_carga=informe.fecha_carga,
         motor=informe.motor,
+        idioma=informe.idioma or "es",
         resumen=informe.resumen,
         valores=informe.valores,
         preguntas=informe.preguntas,
@@ -129,6 +130,7 @@ def listar_informes(db: Session = Depends(get_db), usuario: models.Usuario = Dep
     return [
         InformeResumenOut(
             id=i.id, nombre_archivo=i.nombre_archivo, fecha_carga=i.fecha_carga, motor=i.motor,
+            idioma=i.idioma or "es",
             total_valores=len(i.valores),
             fuera_de_rango=sum(v.estado in ("alto", "bajo") for v in i.valores),
         )
