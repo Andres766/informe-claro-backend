@@ -140,3 +140,25 @@ def test_preguntas_del_modo_demo_concuerdan_en_numero_y_conservan_siglas():
     assert _pregunta_fuera_de_rango("Vitamina D", "bajo") == \
         "¿Qué significa para mí que mi vitamina D esté por debajo del rango de referencia?"
     assert "mi colesterol HDL esté" in _pregunta_fuera_de_rango("Colesterol HDL", "bajo")
+
+
+# --- Idiomas ---------------------------------------------------------------
+
+@pytest.mark.parametrize("cabecera,esperado", [
+    (None, "es"),
+    ("en-US,en;q=0.9", "en"),
+    ("es-CO,es;q=0.9,en;q=0.8", "es"),
+    ("fr-FR,en;q=0.5", "en"),
+    ("de-DE", "es"),
+    ("es;q=0.4,en;q=0.9", "en"),
+])
+def test_normalizar_idioma(cabecera, esperado):
+    from app.i18n import normalizar_idioma
+    assert normalizar_idioma(cabecera) == esperado
+
+
+def test_mensajes_traducidos():
+    from app.i18n import t
+    assert t("pdf_grande", "en", mb=10) == "The PDF is larger than 10 MB"
+    assert t("pdf_grande", "es", mb=10) == "El PDF supera 10 MB"
+    assert t("credenciales", "fr") == "Correo o contraseña incorrectos"
