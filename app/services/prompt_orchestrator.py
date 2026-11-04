@@ -235,7 +235,8 @@ def _interpretar_por_reglas(texto: str, motor: str) -> Interpretacion:
     return Interpretacion(resumen=resumen, valores=valores, preguntas=preguntas, motor=motor)
 
 
-def interpretar(texto_anonimizado: str) -> Interpretacion:
+def interpretar(texto_anonimizado: str, idioma: str = "es") -> Interpretacion:
+    """Interpreta el informe; `idioma` ("es" o "en") es el idioma de la explicación."""
     if not settings.anthropic_api_key:
         return _interpretar_por_reglas(texto_anonimizado, motor="demo (reglas)")
     try:

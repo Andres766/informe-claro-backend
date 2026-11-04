@@ -214,3 +214,14 @@ def test_migracion_agrega_la_columna_idioma(tmp_path, monkeypatch):
     with motor.connect() as conn:
         assert conn.exec_driver_sql("SELECT idioma FROM informe_cargado").scalar() == "es"
     motor.dispose()
+
+
+def test_el_informe_guarda_el_idioma_pedido(client):
+    with PDF_EJEMPLO.open("rb") as f:
+        r = client.post("/api/informes", data={"idioma": "en"},
+                        files={"archivo": ("informe_ejemplo.pdf", f, "application/pdf")})
+    assert r.status_code == 201 and r.json()["idioma"] == "en"
+    with PDF_EJEMPLO.open("rb") as f:
+        r = client.post("/api/informes", headers={"Accept-Language": "en-GB"},
+                        files={"archivo": ("informe_ejemplo.pdf", f, "application/pdf")})
+    assert r.json()["idioma"] == "en"

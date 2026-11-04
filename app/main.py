@@ -7,7 +7,7 @@ Flujo de POST /api/informes:
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
@@ -79,6 +79,7 @@ def salud():
 @app.post("/api/informes", response_model=InformeDetalleOut, status_code=201)
 async def subir_informe(
     archivo: UploadFile = File(...),
+    idioma_informe: str | None = Form(None, alias="idioma"),
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(usuario_actual),
     idioma: str = Depends(idioma_peticion),
@@ -96,7 +97,9 @@ async def subir_informe(
         raise HTTPException(422, t(exc.clave, idioma))
     del contenido  # el PDF original no se conserva
 
-    resultado = interpretar(anonimizar(texto))
+    # La explicación se genera en el idioma pedido en el formulario; si no viene, el del navegador.
+    idioma_explicacion = normalizar_idioma(idioma_informe) if idioma_informe else idioma
+    resultado = interpretar(anonimizar(texto), idioma_explicacion)
     if not resultado.valores:
         raise HTTPException(422, t("sin_valores", idioma))
 
@@ -105,6 +108,7 @@ async def subir_informe(
         nombre_archivo=archivo.filename or "informe.pdf",
         resumen=resultado.resumen,
         motor=resultado.motor,
+        idioma=idioma_explicacion,
         valores=[
             models.ValorExamen(
                 nombre_valor=v.nombre_valor, unidad=v.unidad, valor=v.valor,
