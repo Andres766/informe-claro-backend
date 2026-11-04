@@ -26,6 +26,17 @@ class Settings(BaseSettings):
     jwt_secret: str = ""
     jwt_horas: int = 8
 
+    # Idioma de respuesta cuando la petición no indica uno soportado ("es" o "en").
+    idioma_por_defecto: str = "es"
+
+    @field_validator("idioma_por_defecto")
+    @classmethod
+    def idioma_soportado(cls, valor: str) -> str:
+        valor = valor.strip().lower()
+        if valor not in ("es", "en"):
+            raise ValueError("IDIOMA_POR_DEFECTO debe ser 'es' o 'en'")
+        return valor
+
     @field_validator("database_url")
     @classmethod
     def usar_driver_psycopg(cls, url: str) -> str:

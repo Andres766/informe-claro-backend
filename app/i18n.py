@@ -2,8 +2,10 @@
 
 El idioma de cada petición sale del encabezado Accept-Language que envía el frontend.
 """
+from .config import settings
+
 IDIOMAS = ("es", "en")
-IDIOMA_POR_DEFECTO = "es"
+IDIOMA_POR_DEFECTO = "es"  # textos de respaldo si falta una traducción
 
 MENSAJES = {
     "solo_pdf": {
@@ -49,8 +51,9 @@ MENSAJES = {
 }
 
 
-def normalizar_idioma(valor: str | None, por_defecto: str = IDIOMA_POR_DEFECTO) -> str:
+def normalizar_idioma(valor: str | None, por_defecto: str | None = None) -> str:
     """'en-US,en;q=0.9,es;q=0.8' -> 'en'. Devuelve el primer idioma soportado por orden de preferencia."""
+    por_defecto = por_defecto or settings.idioma_por_defecto
     if not valor:
         return por_defecto
     candidatos = []

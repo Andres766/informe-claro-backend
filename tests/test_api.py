@@ -162,3 +162,13 @@ def test_mensajes_traducidos():
     assert t("pdf_grande", "en", mb=10) == "The PDF is larger than 10 MB"
     assert t("pdf_grande", "es", mb=10) == "El PDF supera 10 MB"
     assert t("credenciales", "fr") == "Correo o contraseña incorrectos"
+
+
+def test_idioma_por_defecto_configurable(monkeypatch):
+    from app.config import Settings, settings
+    from app.i18n import normalizar_idioma
+    monkeypatch.setattr(settings, "idioma_por_defecto", "en")
+    assert normalizar_idioma(None) == "en"
+    assert normalizar_idioma("de-DE") == "en"
+    with pytest.raises(ValueError):
+        Settings(idioma_por_defecto="fr")
