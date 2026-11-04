@@ -314,3 +314,13 @@ def test_anonimizar_informe_en_ingles():
     for dato in ("John Smith", "03/14/1961", "AB-778", "Oak Street"):
         assert dato not in texto
     assert "Fasting glucose 112 mg/dL 70 - 100" in texto
+
+
+def test_el_ejemplo_en_ingles_se_extrae_y_se_anonimiza():
+    from app.services.pdf_parser import extraer_texto, extraer_valores_por_reglas
+    ruta = PDF_EJEMPLO.parent / "lab_report_example.pdf"
+    texto = anonimizar(extraer_texto(ruta.read_bytes()))
+    assert "Jane Doe" not in texto and "4471235" not in texto
+    valores = {v.nombre_valor: clasificar(v.valor, v.rango_referencia) for v in extraer_valores_por_reglas(texto)}
+    assert len(valores) == 10
+    assert valores["Total cholesterol"] == "alto" and valores["Platelet count"] == "bajo"

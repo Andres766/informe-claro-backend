@@ -50,21 +50,58 @@ VALORES_2 = [
     ]),
 ]
 
+# Tercer informe, en inglés, para probar el modo en inglés de punta a punta.
+VALORES_EN = [
+    ("BLOOD CHEMISTRY", [
+        ("Fasting glucose", "104", "mg/dL", "70 - 99"),
+        ("Total cholesterol", "236", "mg/dL", "< 200"),
+        ("HDL cholesterol", "52", "mg/dL", "> 40"),
+        ("LDL cholesterol", "151", "mg/dL", "< 130"),
+        ("Triglycerides", "142", "mg/dL", "< 150"),
+        ("Creatinine", "0.8", "mg/dL", "0.6 - 1.1"),
+    ]),
+    ("COMPLETE BLOOD COUNT", [
+        ("Hemoglobin", "13.6", "g/dL", "12.0 - 15.5"),
+        ("White blood cells", "6.1", "10^3/uL", "4.5 - 11.0"),
+        ("Platelet count", "138", "10^3/uL", "150 - 400"),
+    ]),
+    ("VITAMINS", [
+        ("Vitamin D", "34", "ng/mL", "30 - 100"),
+    ]),
+]
+
+ENCABEZADOS = {
+    "es": {
+        "laboratorio": "LABORATORIO CLÍNICO DEMO S.A.S.",
+        "nota": "Pasto, Nariño - Documento de prueba con datos ficticios",
+        "paciente": "Paciente", "documento": "Documento", "fecha": "Fecha de toma",
+        "pie": "Los rangos de referencia corresponden a adultos. Bacteriólogo responsable: firma digital.",
+    },
+    "en": {
+        "laboratorio": "DEMO CLINICAL LABORATORY",
+        "nota": "Test document with fictitious data",
+        "paciente": "Patient name", "documento": "Patient ID", "fecha": "Collection date",
+        "pie": "Reference ranges apply to adults. Laboratory scientist: digital signature.",
+    },
+}
+
 INFORMES = [
     ("informe_ejemplo.pdf", "María Fernanda Ruiz", "1085123456", "2026-09-20", VALORES_1),
     ("informe_ejemplo_2.pdf", "Carlos Andrés Benavides", "1004567891", "2026-10-02", VALORES_2),
+    ("lab_report_example.pdf", "Jane Doe", "4471235", "2026-10-28", VALORES_EN, "en"),
 ]
 
 
-def generar(archivo, paciente, documento, fecha, valores):
+def generar(archivo, paciente, documento, fecha, valores, idioma="es"):
+    e = ENCABEZADOS[idioma]
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Helvetica", "B", 15)
-    pdf.cell(0, 9, "LABORATORIO CLÍNICO DEMO S.A.S.", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 9, e["laboratorio"], new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("Helvetica", size=9)
-    pdf.cell(0, 5, "Pasto, Nariño - Documento de prueba con datos ficticios", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 5, e["nota"], new_x="LMARGIN", new_y="NEXT")
     pdf.ln(4)
-    for linea in [f"Paciente: {paciente}", f"Documento: {documento}", f"Fecha de toma: {fecha}"]:
+    for linea in [f"{e['paciente']}: {paciente}", f"{e['documento']}: {documento}", f"{e['fecha']}: {fecha}"]:
         pdf.cell(0, 5, linea, new_x="LMARGIN", new_y="NEXT")
     pdf.ln(4)
 
@@ -81,8 +118,7 @@ def generar(archivo, paciente, documento, fecha, valores):
 
     pdf.ln(4)
     pdf.set_font("Helvetica", "I", 8)
-    pdf.multi_cell(0, 4, "Los rangos de referencia corresponden a adultos. "
-                         "Bacteriólogo responsable: firma digital.")
+    pdf.multi_cell(0, 4, e["pie"])
 
     destino = Path(__file__).resolve().parent.parent / "samples" / archivo
     destino.parent.mkdir(exist_ok=True)
