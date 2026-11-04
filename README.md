@@ -28,9 +28,9 @@ uvicorn app.main:app --reload   # http://localhost:8000  (documentación: /docs)
 
 - Sin `ANTHROPIC_API_KEY` la API funciona en **modo demo**: extrae los valores con reglas
   (regex) y genera explicaciones con plantillas. Con la key usa Claude.
-- PDF de prueba con datos ficticios: `samples/informe_ejemplo.pdf` y `samples/informe_ejemplo_2.pdf`
-  (se regeneran con `python scripts/generar_pdf_ejemplo.py`).
-- Pruebas: `pytest` (20 pruebas).
+- PDF de prueba con datos ficticios: `samples/informe_ejemplo.pdf`, `samples/informe_ejemplo_2.pdf`
+  y, en inglés, `samples/lab_report_example.pdf` (se regeneran con `python scripts/generar_pdf_ejemplo.py`).
+- Pruebas: `pytest` (56 pruebas).
 
 ## Endpoints
 
@@ -40,12 +40,23 @@ uvicorn app.main:app --reload   # http://localhost:8000  (documentación: /docs)
 | `POST` | `/api/auth/registro` | Crea una cuenta y devuelve el token |
 | `POST` | `/api/auth/login` | Inicia sesión y devuelve el token |
 | `GET` | `/api/auth/yo` | Datos del usuario de la sesión |
-| `POST` | `/api/informes` | Sube un PDF y devuelve la interpretación |
+| `POST` | `/api/informes` | Sube un PDF (campo `archivo`, opcional `idioma`: `es` o `en`) y devuelve la interpretación |
 | `GET` | `/api/informes` | Historial del usuario |
 | `GET` | `/api/informes/{id}` | Detalle de un informe |
 | `DELETE` | `/api/informes/{id}` | Elimina un informe |
 
 Todas las rutas de `/api/informes` exigen la cabecera `Authorization: Bearer <token>`.
+
+## Idiomas (español e inglés)
+
+- Los mensajes de error se devuelven en el idioma del encabezado `Accept-Language`
+  (por ejemplo `en-US,en;q=0.9`); si no se pide uno soportado se usa `IDIOMA_POR_DEFECTO`.
+- La explicación de cada informe se genera en el idioma del campo `idioma` al subirlo (o, si no
+  se envía, en el del navegador) y queda guardada con el informe (`idioma` en las respuestas).
+- Funciona en los dos motores: el modo demo tiene glosario y plantillas en ambos idiomas, y a
+  Claude se le indica el idioma de salida. Los guardrails clínicos y la anonimización reconocen
+  frases y etiquetas en español y en inglés.
+- `GET /api/salud` indica los idiomas disponibles.
 
 ---
 
@@ -95,7 +106,7 @@ Frontend React ──► FastAPI (orquestador) ──► Servicio de parsing PDF
 | Health Check Path | `/api/salud` |
 
 Variables de entorno: `DATABASE_URL`, `CORS_ORIGINS` (URL del frontend), `JWT_SECRET`,
-`PYTHON_VERSION`, `ANTHROPIC_API_KEY` (opcional).
+`PYTHON_VERSION`, `ANTHROPIC_API_KEY` (opcional), `IDIOMA_POR_DEFECTO` (opcional, `es` o `en`).
 
 ## Pendiente
 
