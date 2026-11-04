@@ -89,6 +89,8 @@ async def subir_informe(
     usuario: models.Usuario = Depends(usuario_actual),
     idioma: str = Depends(idioma_peticion),
 ):
+    if idioma_informe and idioma_informe.strip().lower()[:2] not in IDIOMAS:
+        raise HTTPException(422, t("idioma_no_soportado", idioma))
     if archivo.content_type != "application/pdf" and not (archivo.filename or "").lower().endswith(".pdf"):
         raise HTTPException(415, t("solo_pdf", idioma))
 

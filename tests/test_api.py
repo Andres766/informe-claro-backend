@@ -349,3 +349,10 @@ def test_flujo_completo_con_informe_en_ingles(client, idioma, inicio, pregunta):
 def test_salud_informa_los_idiomas(client):
     salud = client.get("/api/salud").json()
     assert salud["estado"] == "ok" and salud["idiomas"] == ["es", "en"] and salud["idioma_por_defecto"] == "es"
+
+
+def test_rechaza_idiomas_no_soportados(client):
+    with PDF_EJEMPLO.open("rb") as f:
+        r = client.post("/api/informes", data={"idioma": "fr"}, headers={"Accept-Language": "en"},
+                        files={"archivo": ("informe_ejemplo.pdf", f, "application/pdf")})
+    assert r.status_code == 422 and r.json()["detail"] == "Unsupported language. Use “es” or “en”."
