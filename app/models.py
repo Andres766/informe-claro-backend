@@ -37,6 +37,8 @@ class InformeCargado(Base):
     nombre_archivo: Mapped[str] = mapped_column(String(255))
     # Campos de apoyo (no están en el ER mínimo): resumen general y qué motor generó la explicación.
     resumen: Mapped[str] = mapped_column(Text, default="")
+    # Idioma en que se generaron la explicación y las preguntas ("es" o "en").
+    idioma: Mapped[str] = mapped_column(String(2), default="es", server_default="es")
     motor: Mapped[str] = mapped_column(String(40), default="demo")
 
     usuario: Mapped[Usuario] = relationship(back_populates="informes")

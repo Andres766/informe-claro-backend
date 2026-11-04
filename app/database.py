@@ -21,6 +21,13 @@ def get_db():
         db.close()
 
 
+# (tabla, columna, definición SQL) de columnas agregadas después del primer despliegue.
+_COLUMNAS_NUEVAS = [
+    ("usuario", "password_hash", "VARCHAR(100)"),
+    ("informe_cargado", "idioma", "VARCHAR(2) NOT NULL DEFAULT 'es'"),
+]
+
+
 def migrar_columnas_nuevas():
     """Añade columnas que se agregaron al modelo después de crear las tablas.
 
@@ -28,7 +35,8 @@ def migrar_columnas_nuevas():
     """
     from sqlalchemy import inspect, text
 
-    columnas = {c["name"] for c in inspect(engine).get_columns("usuario")}
-    if "password_hash" not in columnas:
-        with engine.begin() as conn:
-            conn.execute(text("ALTER TABLE usuario ADD COLUMN password_hash VARCHAR(100)"))
+    inspector = inspect(engine)
+    for tabla, columna, definicion in _COLUMNAS_NUEVAS:
+        if columna not in {c["name"] for c in inspector.get_columns(tabla)}:
+            with engine.begin() as conn:
+                conn.execute(text(f"ALTER TABLE {tabla} ADD COLUMN {columna} {definicion}"))

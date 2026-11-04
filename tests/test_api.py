@@ -192,3 +192,23 @@ def test_errores_de_autenticacion_en_ingles(client):
     datos = {"nombre": "Paciente Prueba", "email": "prueba@informeclaro.co", "password": "clave-segura-1"}
     r = client.post("/api/auth/registro", json=datos, headers=en)
     assert r.status_code == 409 and r.json()["detail"] == "An account with that email already exists"
+
+
+def test_migracion_agrega_la_columna_idioma(tmp_path, monkeypatch):
+    import sqlite3
+    from sqlalchemy import create_engine, inspect
+    import app.database as database
+    ruta = tmp_path / "vieja.db"
+    con = sqlite3.connect(ruta)
+    con.execute("CREATE TABLE usuario (id INTEGER PRIMARY KEY, nombre TEXT, email TEXT)")
+    con.execute("CREATE TABLE informe_cargado (id INTEGER PRIMARY KEY, usuario_id INTEGER, nombre_archivo TEXT)")
+    con.execute("INSERT INTO informe_cargado (usuario_id, nombre_archivo) VALUES (1, 'viejo.pdf')")
+    con.commit(); con.close()
+    motor = create_engine(f"sqlite:///{ruta}")
+    monkeypatch.setattr(database, "engine", motor)
+    database.migrar_columnas_nuevas()
+    columnas = {c["name"] for c in inspect(motor).get_columns("informe_cargado")}
+    assert "idioma" in columnas
+    with motor.connect() as conn:
+        assert conn.exec_driver_sql("SELECT idioma FROM informe_cargado").scalar() == "es"
+    motor.dispose()
