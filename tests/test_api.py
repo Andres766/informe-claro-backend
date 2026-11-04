@@ -182,3 +182,13 @@ def test_errores_de_informes_en_ingles(client):
     assert r.status_code == 422 and r.json()["detail"] == "The PDF could not be read. Is it a valid file?"
     assert client.get("/api/informes/99999", headers=en).json()["detail"] == "Report not found"
     assert client.get("/api/informes/99999").json()["detail"] == "Informe no encontrado"
+
+
+def test_errores_de_autenticacion_en_ingles(client):
+    en = {"Accept-Language": "en", "Authorization": ""}
+    assert client.get("/api/informes", headers=en).json()["detail"] == "Sign in to continue"
+    r = client.post("/api/auth/login", json={"email": "nadie@informeclaro.co", "password": "x"}, headers=en)
+    assert r.status_code == 401 and r.json()["detail"] == "Incorrect email or password"
+    datos = {"nombre": "Paciente Prueba", "email": "prueba@informeclaro.co", "password": "clave-segura-1"}
+    r = client.post("/api/auth/registro", json=datos, headers=en)
+    assert r.status_code == 409 and r.json()["detail"] == "An account with that email already exists"
