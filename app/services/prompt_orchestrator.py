@@ -116,7 +116,15 @@ def aplicar_guardrails(texto: str) -> str:
 
 # --- Motor LLM (Claude) ----------------------------------------------------
 
-def _interpretar_con_llm(texto: str) -> Interpretacion:
+_INSTRUCCION_IDIOMA = {
+    "es": "Escribe las explicaciones, el resumen y las preguntas en español.",
+    "en": "Write every explanation, the summary and the questions in plain English, "
+          "even if the report is in Spanish. Keep test names as printed in the report. "
+          "The same clinical line applies: never diagnose, never suggest causes or treatment.",
+}
+
+
+def _interpretar_con_llm(texto: str, idioma: str = "es") -> Interpretacion:
     client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
     respuesta = client.messages.parse(
         model=settings.llm_model,
@@ -125,7 +133,8 @@ def _interpretar_con_llm(texto: str) -> Interpretacion:
         messages=[{
             "role": "user",
             "content": f"<informe>\n{texto}\n</informe>\n\n"
-                       "Extrae y explica cada valor del informe y sugiere preguntas para el médico.",
+                       "Extrae y explica cada valor del informe y sugiere preguntas para el médico.\n"
+                       + _INSTRUCCION_IDIOMA.get(idioma, _INSTRUCCION_IDIOMA["es"]),
         }],
         output_format=ResultadoIA,
     )
@@ -320,7 +329,7 @@ def interpretar(texto_anonimizado: str, idioma: str = "es") -> Interpretacion:
     if not settings.anthropic_api_key:
         return _interpretar_por_reglas(texto_anonimizado, motor="demo (reglas)", idioma=idioma)
     try:
-        return _interpretar_con_llm(texto_anonimizado)
+        return _interpretar_con_llm(texto_anonimizado, idioma)
     except (anthropic.APIError, RuntimeError) as exc:
         log.error("Fallo en el LLM, se usa el motor por reglas: %s", exc)
         return _interpretar_por_reglas(texto_anonimizado, motor="respaldo (reglas)", idioma=idioma)

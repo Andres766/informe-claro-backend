@@ -259,3 +259,30 @@ def test_modo_demo_en_ingles(client):
     preguntas = [p["texto_pregunta"] for p in informe["preguntas"]]
     assert "What does it mean for me that my hemoglobina is below the reference range?" in preguntas
     assert "How do these results compare with my previous tests?" in preguntas
+
+
+def test_el_llm_recibe_la_instruccion_de_idioma(monkeypatch):
+    from types import SimpleNamespace
+    import app.services.prompt_orchestrator as po
+    llamadas = []
+
+    class ClienteFalso:
+        def __init__(self, **_):
+            self.messages = SimpleNamespace(parse=self.parse)
+
+        def parse(self, **kwargs):
+            llamadas.append(kwargs)
+            salida = po.ResultadoIA(
+                resumen="Your report has one value.",
+                valores=[po.ValorIA(nombre_valor="Glucose", valor="90", unidad="mg/dL",
+                                    rango_referencia="70 - 100", explicacion="This test measures sugar.")],
+                preguntas=["How do these results compare with my previous tests?"],
+            )
+            return SimpleNamespace(stop_reason="end_turn", parsed_output=salida)
+
+    monkeypatch.setattr(po.settings, "anthropic_api_key", "clave-de-prueba")
+    monkeypatch.setattr(po.anthropic, "Anthropic", ClienteFalso)
+    resultado = po.interpretar("Glucose 90 mg/dL 70 - 100", "en")
+    assert "plain English" in llamadas[0]["messages"][0]["content"]
+    assert resultado.valores[0].estado == "normal"
+    assert resultado.motor == po.settings.llm_model
