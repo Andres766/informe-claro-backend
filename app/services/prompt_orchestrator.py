@@ -16,10 +16,13 @@ from .pdf_parser import ValorExtraido, clasificar, extraer_valores_por_reglas
 
 log = logging.getLogger(__name__)
 
-AVISO_MEDICO = (
-    "Esta explicación es solo informativa y no es un diagnóstico. "
-    "Consulta siempre a tu médico tratante para interpretar tus resultados."
-)
+AVISOS = {
+    "es": "Esta explicación es solo informativa y no es un diagnóstico. "
+          "Consulta siempre a tu médico tratante para interpretar tus resultados.",
+    "en": "This explanation is for information only and is not a diagnosis. "
+          "Always ask your treating doctor to interpret your results.",
+}
+AVISO_MEDICO = AVISOS["es"]
 
 SYSTEM_PROMPT = """\
 Eres InformeClaro, un asistente que traduce resultados de laboratorio clínico a lenguaje \

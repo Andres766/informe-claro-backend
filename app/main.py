@@ -20,7 +20,7 @@ from .database import Base, engine, get_db, migrar_columnas_nuevas
 from .i18n import normalizar_idioma, t
 from .schemas import InformeDetalleOut, InformeResumenOut
 from .services.pdf_parser import PDFInvalidoError, anonimizar, extraer_texto
-from .services.prompt_orchestrator import AVISO_MEDICO, interpretar
+from .services.prompt_orchestrator import AVISOS, interpretar
 
 logging.basicConfig(level=logging.INFO)
 
@@ -51,7 +51,7 @@ def _detalle(informe: models.InformeCargado) -> InformeDetalleOut:
         resumen=informe.resumen,
         valores=informe.valores,
         preguntas=informe.preguntas,
-        aviso=AVISO_MEDICO,
+        aviso=AVISOS.get(informe.idioma, AVISOS["es"]),
     )
 
 

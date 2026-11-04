@@ -221,6 +221,7 @@ def test_el_informe_guarda_el_idioma_pedido(client):
         r = client.post("/api/informes", data={"idioma": "en"},
                         files={"archivo": ("informe_ejemplo.pdf", f, "application/pdf")})
     assert r.status_code == 201 and r.json()["idioma"] == "en"
+    assert r.json()["aviso"].startswith("This explanation is for information only")
     with PDF_EJEMPLO.open("rb") as f:
         r = client.post("/api/informes", headers={"Accept-Language": "en-GB"},
                         files={"archivo": ("informe_ejemplo.pdf", f, "application/pdf")})
