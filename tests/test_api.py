@@ -304,3 +304,13 @@ def test_guardrails_en_ingles_bloquean(texto):
 def test_guardrails_en_ingles_dejan_pasar_explicaciones_neutrales():
     texto = "This test measures sugar in your blood. Your result is above the reference range."
     assert aplicar_guardrails(texto, "en") == texto
+
+
+def test_anonimizar_informe_en_ingles():
+    texto = anonimizar(
+        "Patient name: John Smith\nDate of birth: 03/14/1961\nMRN: AB-778\n"
+        "Address: 12 Oak Street\nFasting glucose 112 mg/dL 70 - 100"
+    )
+    for dato in ("John Smith", "03/14/1961", "AB-778", "Oak Street"):
+        assert dato not in texto
+    assert "Fasting glucose 112 mg/dL 70 - 100" in texto

@@ -34,7 +34,11 @@ def extraer_texto(contenido: bytes) -> str:
 
 _PATRONES_PII = [
     # "Paciente: Nombre Apellido" / "Nombre: ..." -> se oculta el valor de la línea
-    (re.compile(r"(?im)^(\s*(paciente|nombre|documento|c\.?c\.?|identificaci[oó]n|direcci[oó]n|tel[eé]fono)\s*:).*$"), r"\1 [OCULTO]"),
+    (re.compile(r"(?im)^(\s*(paciente|nombre|documento|c\.?c\.?|identificaci[oó]n|direcci[oó]n|tel[eé]fono"
+                r"|fecha\s+de\s+nacimiento"
+                # Informes en inglés
+                r"|patient(\s+name)?|name|id|patient\s+id|mrn|medical\s+record(\s+number)?"
+                r"|address|phone|date\s+of\s+birth|dob)\s*:).*$"), r"\1 [OCULTO]"),
     # Números largos (cédulas, teléfonos, historias clínicas)
     (re.compile(r"\b\d{6,}\b"), "[OCULTO]"),
     (re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+"), "[OCULTO]"),
