@@ -17,7 +17,7 @@ from .auth import router as auth_router
 from .auth import usuario_actual
 from .config import settings
 from .database import Base, engine, get_db, migrar_columnas_nuevas
-from .i18n import normalizar_idioma, t
+from .i18n import IDIOMAS, normalizar_idioma, t
 from .schemas import InformeDetalleOut, InformeResumenOut
 from .services.pdf_parser import PDFInvalidoError, anonimizar, extraer_texto
 from .services.prompt_orchestrator import AVISOS, interpretar
@@ -73,7 +73,12 @@ def _informe_del_usuario(informe_id: int, usuario: models.Usuario, db: Session, 
 
 @app.get("/api/salud")
 def salud():
-    return {"estado": "ok", "motor": settings.llm_model if settings.anthropic_api_key else "demo (reglas)"}
+    return {
+        "estado": "ok",
+        "motor": settings.llm_model if settings.anthropic_api_key else "demo (reglas)",
+        "idiomas": list(IDIOMAS),
+        "idioma_por_defecto": settings.idioma_por_defecto,
+    }
 
 
 @app.post("/api/informes", response_model=InformeDetalleOut, status_code=201)

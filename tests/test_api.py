@@ -344,3 +344,8 @@ def test_flujo_completo_con_informe_en_ingles(client, idioma, inicio, pregunta):
     assert colesterol["estado"] == "alto" and colesterol["explicacion_ia"].startswith(inicio)
     assert pregunta in [p["texto_pregunta"] for p in informe["preguntas"]]
     assert client.delete(f"/api/informes/{informe['id']}").status_code == 204
+
+
+def test_salud_informa_los_idiomas(client):
+    salud = client.get("/api/salud").json()
+    assert salud["estado"] == "ok" and salud["idiomas"] == ["es", "en"] and salud["idioma_por_defecto"] == "es"
