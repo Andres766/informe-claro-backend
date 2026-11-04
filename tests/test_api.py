@@ -286,3 +286,21 @@ def test_el_llm_recibe_la_instruccion_de_idioma(monkeypatch):
     assert "plain English" in llamadas[0]["messages"][0]["content"]
     assert resultado.valores[0].estado == "normal"
     assert resultado.motor == po.settings.llm_model
+
+
+@pytest.mark.parametrize("texto", [
+    "You have diabetes.",
+    "This means you have anemia.",
+    "You may have a thyroid problem.",
+    "Take your medication twice a day.",
+    "I recommend a lower dose.",
+    "This value is dangerous.",
+])
+def test_guardrails_en_ingles_bloquean(texto):
+    salida = aplicar_guardrails(texto, "en")
+    assert salida != texto and salida.startswith("This test is part of your report")
+
+
+def test_guardrails_en_ingles_dejan_pasar_explicaciones_neutrales():
+    texto = "This test measures sugar in your blood. Your result is above the reference range."
+    assert aplicar_guardrails(texto, "en") == texto

@@ -91,26 +91,36 @@ class Interpretacion(BaseModel):
 # --- Segunda capa de guardrails (post-procesamiento) -----------------------
 
 _FRASES_PROHIBIDAS = re.compile(
+    # Español
     r"\b(usted|ud\.?|tú|te)\s+(tiene|tienes|padece|padeces|sufre|sufres)\b"
     r"|\b(podría|puede|podrías|puedes)\s+(tener|padecer|indicar\s+que\s+tiene)\b"
     r"|\b(tome|toma|tomar|suspenda|suspende|aumente|disminuya)\s+(el|la|los|las|un|una|su|tu)?\s*"
     r"(medicamento|medicina|pastilla|dosis|suplemento|tratamiento)"
     r"|\b(le|te)\s+recomiendo\b|\bdebe(s|ría|rías)?\s+tomar\b|\bdosis\b"
-    r"|\b(grave|peligros[oa]|urgente|alarmante)\b",
+    r"|\b(grave|peligros[oa]|urgente|alarmante)\b"
+    # Inglés
+    r"|\byou\s+(have|suffer\s+from|are\s+suffering|might\s+have|may\s+have|could\s+have|probably\s+have)\b"
+    r"|\b(this|it)\s+(means|indicates|suggests|shows)\s+(that\s+)?you\s+(have|are)\b"
+    r"|\b(take|stop|start|increase|decrease)\s+(your|the|a|an)?\s*"
+    r"(medication|medicine|medicines|pills?|dose|dosage|supplements?|treatment)"
+    r"|\bI\s+(recommend|suggest|advise)\b|\byou\s+should\s+(take|stop|start)\b|\b(dose|dosage)\b"
+    r"|\b(serious|dangerous|urgent|alarming|emergency)\b",
     re.IGNORECASE,
 )
 
-_TEXTO_SEGURO = (
-    "Este examen hace parte de tu informe. Tu médico es la persona indicada para explicarte "
-    "qué significa este resultado en tu caso."
-)
+_TEXTO_SEGURO = {
+    "es": "Este examen hace parte de tu informe. Tu médico es la persona indicada para explicarte "
+          "qué significa este resultado en tu caso.",
+    "en": "This test is part of your report. Your doctor is the right person to explain "
+          "what this result means in your case.",
+}
 
 
-def aplicar_guardrails(texto: str) -> str:
+def aplicar_guardrails(texto: str, idioma: str = "es") -> str:
     """Si el LLM se sale de la línea clínica, se reemplaza el texto por uno seguro."""
     if _FRASES_PROHIBIDAS.search(texto):
         log.warning("Guardrail activado; texto reemplazado: %r", texto[:200])
-        return _TEXTO_SEGURO
+        return _TEXTO_SEGURO.get(idioma, _TEXTO_SEGURO["es"])
     return texto
 
 
@@ -143,7 +153,7 @@ def _interpretar_con_llm(texto: str, idioma: str = "es") -> Interpretacion:
 
     datos = respuesta.parsed_output
     return Interpretacion(
-        resumen=aplicar_guardrails(datos.resumen),
+        resumen=aplicar_guardrails(datos.resumen, idioma),
         valores=[
             ValorFinal(
                 nombre_valor=v.nombre_valor,
@@ -151,7 +161,7 @@ def _interpretar_con_llm(texto: str, idioma: str = "es") -> Interpretacion:
                 unidad=v.unidad,
                 rango_referencia=v.rango_referencia,
                 estado=clasificar(v.valor, v.rango_referencia),
-                explicacion=aplicar_guardrails(v.explicacion),
+                explicacion=aplicar_guardrails(v.explicacion, idioma),
             )
             for v in datos.valores
         ],
