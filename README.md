@@ -9,7 +9,7 @@ Proyecto final individual — Programación Orientada a la Web, Ingeniería de S
 
 - Frontend (React): https://github.com/Andres766/informe-claro-frontend
 - Stack: Java 21 · Spring Boot 4 · gRPC 1.85 (HTTP/2, Netty) · Protocol Buffers · JPA/Hibernate ·
-  PostgreSQL · PDFBox · API de Claude (REST) · JWT + bcrypt · Docker.
+  PostgreSQL · PDFBox · API de Gemini o Claude (REST) · JWT + bcrypt · Docker.
 
 ---
 
@@ -18,15 +18,15 @@ Proyecto final individual — Programación Orientada a la Web, Ingeniería de S
 ```
                          REST (JSON)                           REST (HTTPS)
  Navegador (React) ───────────────────▶ ┌─────────────────┐            ┌──────────────────┐
-                                        │ infraestructura │            │  API de Anthropic │
-                                        │  (orquestador)  │            │  (Claude) · 3.º  │
+                                        │ infraestructura │            │   API de IA · 3.º │
+                                        │  (orquestador)  │            │ Gemini o Claude  │
                                         └───┬────┬────┬───┘            └────────▲─────────┘
                        gRPC / HTTP/2        │    │    │                          │ REST
              ┌──────────────────────────────┘    │    └───────────────┐          │
              ▼                         ▼         ▼                    ▼          │
    ┌──────────────────┐  ┌───────────────────┐  ┌──────────────────────┐  ┌──────────────────┐
    │ servicio-usuarios│  │servicio-documentos│◀─┤servicio-interpretacion├──┘  │ servicio-informes│
-   │  cuentas · JWT   │  │ PDF · anonimizar  │  │ Claude · reglas ·     │     │    historial     │
+   │  cuentas · JWT   │  │ PDF · anonimizar  │  │ IA · reglas ·         │     │    historial     │
    │     :9091        │  │ extraer · :9092   │  │ guardrails · :9093    │     │      :9094       │
    └────────┬─────────┘  └─────────┬─────────┘  └──────────┬───────────┘     └────────┬─────────┘
             │      gRPC / HTTP/2 ──┘ (interpretación pide valores y clasificaciones)      │
@@ -42,7 +42,7 @@ Proyecto final individual — Programación Orientada a la Web, Ingeniería de S
 | Entre | Protocolo | Dónde está |
 |---|---|---|
 | Microservicio ⇄ microservicio, orquestador ⇄ microservicio | **gRPC sobre HTTP/2** (Netty, h2c en la red interna) | Contratos en `contratos-grpc/src/main/proto/*.proto`; clientes en `infraestructura/.../cliente/` y `servicio-interpretacion/.../cliente/` |
-| Sistema ⇄ API de terceros (Anthropic / Claude) | **REST** (HTTPS + JSON) | `servicio-interpretacion/.../externo/AnthropicRestCliente.java` |
+| Sistema ⇄ API de terceros (Google Gemini o Anthropic Claude) | **REST** (HTTPS + JSON) | `servicio-interpretacion/.../externo/GeminiRestCliente.java` y `AnthropicRestCliente.java` (interfaz común `ClienteLlm`) |
 | Navegador ⇄ sistema | REST (JSON) | Solo `infraestructura` expone HTTP; los microservicios **no** tienen servidor web |
 
 ### Módulos
@@ -53,7 +53,7 @@ Proyecto final individual — Programación Orientada a la Web, Ingeniería de S
 | `comun` | Servidor gRPC reutilizable, canales HTTP/2, errores entre servicios, conexión a la base | — |
 | `servicio-usuarios` | Registro, inicio de sesión, contraseñas bcrypt, tokens JWT | `usuario` |
 | `servicio-documentos` | Lee el PDF **en memoria** (nunca lo guarda), oculta datos personales, extrae y clasifica valores | `registro_procesamiento` (bitácora sin contenido) |
-| `servicio-interpretacion` | Explica cada valor (Claude por REST o motor por reglas), guardrails clínicos, preguntas, aviso médico | `registro_interpretacion` (bitácora) |
+| `servicio-interpretacion` | Explica cada valor (Gemini/Claude por REST o motor por reglas), guardrails clínicos, preguntas, aviso médico | `registro_interpretacion` (bitácora) |
 | `servicio-informes` | Historial de cada usuario (valores, explicación y preguntas) | `informe_cargado`, `valor_examen`, `pregunta_sugerida` |
 | `infraestructura` | **Orquestador**: API REST del navegador, autenticación, coordinación del flujo, traducción de errores, CORS | — |
 | `lanzador-demo` | Arranca todos los módulos en **una sola JVM** para servidores con poca memoria (Render gratis, 512 MB). Cada módulo conserva su contexto, su configuración y su servidor gRPC; se siguen hablando por gRPC/HTTP/2 en `127.0.0.1` | — |
@@ -79,7 +79,7 @@ Los errores de negocio viajan como `Status` de gRPC (por ejemplo `NOT_FOUND` con
 1. **infraestructura** valida el token (gRPC → `servicio-usuarios`), el tipo y el tamaño del archivo.
 2. gRPC → `servicio-documentos`: extrae el texto del PDF en memoria y oculta los datos personales.
 3. gRPC → `servicio-interpretacion`, que:
-   - con API key, llama a Claude por **REST** con salida estructurada (JSON Schema); sin key o si falla, usa el motor por reglas;
+   - con API key, llama a la IA por **REST** con salida estructurada (JSON Schema): Gemini si hay `GEMINI_API_KEY`, si no Claude con `ANTHROPIC_API_KEY`; sin key o si falla (por ejemplo, sin cuota), usa el motor por reglas;
    - pide por gRPC a `servicio-documentos` el estado de cada valor (lo decide el código, no el LLM);
    - aplica los guardrails y devuelve explicación, resumen y preguntas.
 4. gRPC → `servicio-informes`: guarda el resultado (sin el PDF).
@@ -102,7 +102,7 @@ docker compose up --build         # PostgreSQL + 4 microservicios + orquestador
 # API REST en http://localhost:8000  (el frontend en http://localhost:5173 ya apunta ahí)
 ```
 
-Variables opcionales: `ANTHROPIC_API_KEY` (sin ella, modo demo por reglas), `JWT_SECRET` (32 caracteres o más),
+Variables opcionales: `GEMINI_API_KEY` o `ANTHROPIC_API_KEY` (sin ninguna, modo demo por reglas), `JWT_SECRET` (32 caracteres o más),
 `CORS_ORIGINS`.
 
 ### Sin Docker
@@ -126,8 +126,8 @@ Cada módulo lee su propia configuración (`servicio-usuarios.yml`, `infraestruc
 
 ### Pruebas
 
-- `./mvnw test` — 74 pruebas: cada microservicio se prueba a través de su **API gRPC real** (HTTP/2) con
-  una base H2; el cliente REST de Anthropic se prueba sin salir a internet.
+- `./mvnw test` — 77 pruebas: cada microservicio se prueba a través de su **API gRPC real** (HTTP/2) con
+  una base H2; los clientes REST de Gemini y Anthropic se prueban sin salir a internet.
 - `pytest pruebas-contrato` — pruebas de **contrato** contra el sistema en marcha: verifican que la API REST
   que usa el frontend responde igual que la versión monolítica (rutas, códigos, JSON y mensajes).
 - Compatibilidad: las contraseñas (bcrypt `$2b$`) y los tokens JWT emitidos por la versión anterior siguen siendo válidos.
@@ -157,5 +157,6 @@ comunicando por gRPC/HTTP/2 en `127.0.0.1` y solo el orquestador expone `$PORT`.
 puede desplegar cada servicio por separado con la misma imagen y la variable `SERVICIO=<nombre>`.
 
 Variables: `DATABASE_URL` (la URL de Postgres de Render, Neon o Supabase), `JWT_SECRET`, `CORS_ORIGINS`
-(URL del frontend), `ANTHROPIC_API_KEY` (opcional), `IDIOMA_POR_DEFECTO` (opcional).
+(URL del frontend), `GEMINI_API_KEY` (IA real; opcional, sin ella modo demo), `GEMINI_MODEL` (opcional),
+`ANTHROPIC_API_KEY` (alternativa a Gemini), `IDIOMA_POR_DEFECTO` (opcional).
 Health check: `/api/salud`.

@@ -1,7 +1,7 @@
 # InformeClaro en local: una base de datos única + 4 microservicios + el orquestador.
 #   docker compose up --build        ->  API REST en http://localhost:8000
 # Comunicación interna entre contenedores: gRPC sobre HTTP/2 (puertos 9091-9094, no publicados).
-# Comunicación con terceros (Anthropic): REST, desde servicio-interpretacion.
+# Comunicación con terceros (Gemini o Anthropic): REST, desde servicio-interpretacion.
 
 x-servicio: &servicio
   build: .
@@ -51,6 +51,8 @@ services:
       <<: *entorno-base
       SERVICIO: servicio-interpretacion
       DESTINO_DOCUMENTOS: servicio-documentos:9092
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-latest}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
 
   servicio-informes:
