@@ -1,117 +1,161 @@
-# InformeClaro — Backend (API)
+# InformeClaro — Backend en microservicios (monorepositorio)
 
-API de **InformeClaro**, el traductor de resultados de laboratorio a lenguaje sencillo.
-El paciente sube el PDF de su examen; la API extrae cada valor, lo explica comparándolo con el
-rango de referencia y genera preguntas para la próxima consulta. **Nunca diagnostica ni
-recomienda tratamiento**: la decisión clínica es 100 % del médico.
+API de **InformeClaro**, el traductor de resultados de laboratorio a lenguaje sencillo. El paciente
+sube el PDF de su examen; el sistema extrae cada valor, lo explica comparándolo con el rango de
+referencia y genera preguntas para la próxima consulta. **Nunca diagnostica ni recomienda
+tratamiento**: la decisión clínica es 100 % del médico.
 
 Proyecto final individual — Programación Orientada a la Web, Ingeniería de Software, UCC Pasto.
 
 - Frontend (React): https://github.com/Andres766/informe-claro-frontend
-- API desplegada: https://informe-claro.onrender.com (documentación interactiva en `/docs`)
-
-Stack: Python · FastAPI · SQLAlchemy · PostgreSQL · pdfplumber · API de Claude · JWT + bcrypt.
-
----
-
-## Cómo ejecutarlo
-
-Requisitos: Python 3.11+.
-
-```bash
-python -m venv .venv
-.venv\Scripts\activate          # Linux/Mac: source .venv/bin/activate
-pip install -r requirements.txt
-copy .env.example .env          # opcional: poner ANTHROPIC_API_KEY y JWT_SECRET
-uvicorn app.main:app --reload   # http://localhost:8000  (documentación: /docs)
-```
-
-- Sin `ANTHROPIC_API_KEY` la API funciona en **modo demo**: extrae los valores con reglas
-  (regex) y genera explicaciones con plantillas. Con la key usa Claude.
-- PDF de prueba con datos ficticios: `samples/informe_ejemplo.pdf`, `samples/informe_ejemplo_2.pdf`
-  y, en inglés, `samples/lab_report_example.pdf` (se regeneran con `python scripts/generar_pdf_ejemplo.py`).
-- Pruebas: `pytest` (56 pruebas).
-
-## Endpoints
-
-| Método | Ruta | Descripción |
-|---|---|---|
-| `GET` | `/api/salud` | Estado del servicio y motor de interpretación |
-| `POST` | `/api/auth/registro` | Crea una cuenta y devuelve el token |
-| `POST` | `/api/auth/login` | Inicia sesión y devuelve el token |
-| `GET` | `/api/auth/yo` | Datos del usuario de la sesión |
-| `POST` | `/api/informes` | Sube un PDF (campo `archivo`, opcional `idioma`: `es` o `en`) y devuelve la interpretación |
-| `GET` | `/api/informes` | Historial del usuario |
-| `GET` | `/api/informes/{id}` | Detalle de un informe |
-| `DELETE` | `/api/informes/{id}` | Elimina un informe |
-
-Todas las rutas de `/api/informes` exigen la cabecera `Authorization: Bearer <token>`.
-
-## Idiomas (español e inglés)
-
-- Los mensajes de error se devuelven en el idioma del encabezado `Accept-Language`
-  (por ejemplo `en-US,en;q=0.9`); si no se pide uno soportado se usa `IDIOMA_POR_DEFECTO`.
-- La explicación de cada informe se genera en el idioma del campo `idioma` al subirlo (o, si no
-  se envía, en el del navegador) y queda guardada con el informe (`idioma` en las respuestas).
-- Funciona en los dos motores: el modo demo tiene glosario y plantillas en ambos idiomas, y a
-  Claude se le indica el idioma de salida. Los guardrails clínicos y la anonimización reconocen
-  frases y etiquetas en español y en inglés.
-- `GET /api/salud` indica los idiomas disponibles.
+- Stack: Java 21 · Spring Boot 4 · gRPC 1.85 (HTTP/2, Netty) · Protocol Buffers · JPA/Hibernate ·
+  PostgreSQL · PDFBox · API de Claude (REST) · JWT + bcrypt · Docker.
 
 ---
 
 ## Arquitectura
 
 ```
-Frontend React ──► FastAPI (orquestador) ──► Servicio de parsing PDF (pdfplumber)
-                          │                ──► Orquestador de prompt ──► API LLM (Claude)
-                          └──► Base de datos (SQLite en desarrollo / PostgreSQL en producción)
+                         REST (JSON)                           REST (HTTPS)
+ Navegador (React) ───────────────────▶ ┌─────────────────┐            ┌──────────────────┐
+                                        │ infraestructura │            │  API de Anthropic │
+                                        │  (orquestador)  │            │  (Claude) · 3.º  │
+                                        └───┬────┬────┬───┘            └────────▲─────────┘
+                       gRPC / HTTP/2        │    │    │                          │ REST
+             ┌──────────────────────────────┘    │    └───────────────┐          │
+             ▼                         ▼         ▼                    ▼          │
+   ┌──────────────────┐  ┌───────────────────┐  ┌──────────────────────┐  ┌──────────────────┐
+   │ servicio-usuarios│  │servicio-documentos│◀─┤servicio-interpretacion├──┘  │ servicio-informes│
+   │  cuentas · JWT   │  │ PDF · anonimizar  │  │ Claude · reglas ·     │     │    historial     │
+   │     :9091        │  │ extraer · :9092   │  │ guardrails · :9093    │     │      :9094       │
+   └────────┬─────────┘  └─────────┬─────────┘  └──────────┬───────────┘     └────────┬─────────┘
+            │      gRPC / HTTP/2 ──┘ (interpretación pide valores y clasificaciones)      │
+            └───────────────────────────────┬───────────────┴────────────────────────────┘
+                                            ▼
+                                ┌───────────────────────┐
+                                │ PostgreSQL (una sola) │
+                                └───────────────────────┘
 ```
 
-| Capa | Archivo(s) |
-|---|---|
-| Aplicación / API | `app/main.py` — informes y salud |
-| Autenticación | `app/auth.py`, `app/security.py` — registro, login, JWT, bcrypt |
-| Servicio de parsing | `app/services/pdf_parser.py` — extracción, anonimización, clasificación por rango |
-| Orquestador de prompt | `app/services/prompt_orchestrator.py` — prompt con guardrails, llamada al LLM, filtro de salida |
-| Datos | `app/models.py` — `Usuario`, `InformeCargado`, `ValorExamen`, `PreguntaSugerida` |
+### Reglas de comunicación
+
+| Entre | Protocolo | Dónde está |
+|---|---|---|
+| Microservicio ⇄ microservicio, orquestador ⇄ microservicio | **gRPC sobre HTTP/2** (Netty, h2c en la red interna) | Contratos en `contratos-grpc/src/main/proto/*.proto`; clientes en `infraestructura/.../cliente/` y `servicio-interpretacion/.../cliente/` |
+| Sistema ⇄ API de terceros (Anthropic / Claude) | **REST** (HTTPS + JSON) | `servicio-interpretacion/.../externo/AnthropicRestCliente.java` |
+| Navegador ⇄ sistema | REST (JSON) | Solo `infraestructura` expone HTTP; los microservicios **no** tienen servidor web |
+
+### Módulos
+
+| Módulo | Responsabilidad | Tablas (base única) |
+|---|---|---|
+| `contratos-grpc` | Contratos `.proto` compartidos y código gRPC generado | — |
+| `comun` | Servidor gRPC reutilizable, canales HTTP/2, errores entre servicios, conexión a la base | — |
+| `servicio-usuarios` | Registro, inicio de sesión, contraseñas bcrypt, tokens JWT | `usuario` |
+| `servicio-documentos` | Lee el PDF **en memoria** (nunca lo guarda), oculta datos personales, extrae y clasifica valores | `registro_procesamiento` (bitácora sin contenido) |
+| `servicio-interpretacion` | Explica cada valor (Claude por REST o motor por reglas), guardrails clínicos, preguntas, aviso médico | `registro_interpretacion` (bitácora) |
+| `servicio-informes` | Historial de cada usuario (valores, explicación y preguntas) | `informe_cargado`, `valor_examen`, `pregunta_sugerida` |
+| `infraestructura` | **Orquestador**: API REST del navegador, autenticación, coordinación del flujo, traducción de errores, CORS | — |
+| `lanzador-demo` | Arranca todos los módulos en **una sola JVM** para servidores con poca memoria (Render gratis, 512 MB). Cada módulo conserva su contexto, su configuración y su servidor gRPC; se siguen hablando por gRPC/HTTP/2 en `127.0.0.1` | — |
+
+### Capas de cada microservicio
+
+```
+servicio-x/src/main/java/co/edu/ucc/informeclaro/x/
+├── model/        entidades JPA
+├── repository/   acceso a datos (Spring Data)
+├── dto/          objetos de transferencia (records)
+├── service/      reglas de negocio
+├── controller/   controlador interno: recibe DTOs y coordina los servicios
+└── api/          XxxGrpcApi.java ← la API gRPC: única puerta de entrada desde los demás módulos;
+                  traduce protobuf ⇄ DTO y delega en el controlador
+```
+
+Los errores de negocio viajan como `Status` de gRPC (por ejemplo `NOT_FOUND` con la clave
+`informe_no_encontrado`); el orquestador los convierte en el HTTP y el mensaje traducido de siempre.
 
 ### Flujo de `POST /api/informes`
 
-1. El navegador envía el PDF (multipart).
-2. `pdfplumber` extrae el texto **en memoria**; el PDF nunca se escribe a disco ni se guarda.
-3. Se ocultan los datos personales (nombre, documento, correo, números largos) y se arma el prompt.
-4. Se llama a Claude con **salida estructurada** (esquema Pydantic): valores, explicaciones y preguntas.
-5. El backend calcula el estado de cada valor (normal / alto / bajo) y aplica el filtro de guardrails.
-6. Se guarda en la base de datos y se devuelve al frontend con el aviso médico.
+1. **infraestructura** valida el token (gRPC → `servicio-usuarios`), el tipo y el tamaño del archivo.
+2. gRPC → `servicio-documentos`: extrae el texto del PDF en memoria y oculta los datos personales.
+3. gRPC → `servicio-interpretacion`, que:
+   - con API key, llama a Claude por **REST** con salida estructurada (JSON Schema); sin key o si falla, usa el motor por reglas;
+   - pide por gRPC a `servicio-documentos` el estado de cada valor (lo decide el código, no el LLM);
+   - aplica los guardrails y devuelve explicación, resumen y preguntas.
+4. gRPC → `servicio-informes`: guarda el resultado (sin el PDF).
+5. gRPC → `servicio-interpretacion`: aviso médico en el idioma del informe; respuesta REST al navegador.
 
-### Guardrails clínicos (en tres capas)
+### Guardrails clínicos (tres capas)
 
-1. **Prompt de sistema**: define qué SÍ hace (explicar, comparar con el rango, sugerir preguntas)
-   y qué NO hace (diagnosticar, interpretar causas, recomendar tratamientos, generar alarma).
-2. **Decisión determinista**: si un valor está fuera de rango lo decide el código comparando
-   números, no el LLM, para que sea siempre verificable.
-3. **Filtro de salida**: si la explicación contiene frases de diagnóstico ("usted tiene…"),
-   de tratamiento ("tome el medicamento…") o alarmistas ("grave", "urgente"), se reemplaza por
-   un texto seguro que remite al médico.
+1. **Prompt de sistema** con la línea clínica (explicar sí; diagnosticar, interpretar causas o recomendar tratamiento, no).
+2. **Decisión determinista**: el estado normal/alto/bajo lo calcula `servicio-documentos` comparando números.
+3. **Filtro de salida** en español e inglés: frases de diagnóstico, tratamiento o alarma se reemplazan por un texto seguro.
 
 ---
 
+## Cómo ejecutarlo
+
+### Con Docker (recomendado)
+
+```bash
+docker compose up --build         # PostgreSQL + 4 microservicios + orquestador
+# API REST en http://localhost:8000  (el frontend en http://localhost:5173 ya apunta ahí)
+```
+
+Variables opcionales: `ANTHROPIC_API_KEY` (sin ella, modo demo por reglas), `JWT_SECRET` (32 caracteres o más),
+`CORS_ORIGINS`.
+
+### Sin Docker
+
+Requisitos: Java 21+ y un PostgreSQL en `127.0.0.1:5435` (base, usuario y clave `informeclaro`) o
+`DATABASE_URL` apuntando a uno.
+
+```bash
+./mvnw package                                     # compila y prueba todos los módulos
+# Opción A: un proceso por microservicio
+java -jar servicio-usuarios/target/servicio-usuarios-exec.jar
+java -jar servicio-documentos/target/servicio-documentos-exec.jar
+java -jar servicio-interpretacion/target/servicio-interpretacion-exec.jar
+java -jar servicio-informes/target/servicio-informes-exec.jar
+java -jar infraestructura/target/infraestructura-exec.jar
+# Opción B: todos en una JVM (siguen comunicándose por gRPC)
+java -jar lanzador-demo/target/lanzador-demo.jar
+```
+
+Cada módulo lee su propia configuración (`servicio-usuarios.yml`, `infraestructura.yml`, …).
+
+### Pruebas
+
+- `./mvnw test` — 74 pruebas: cada microservicio se prueba a través de su **API gRPC real** (HTTP/2) con
+  una base H2; el cliente REST de Anthropic se prueba sin salir a internet.
+- `pytest pruebas-contrato` — pruebas de **contrato** contra el sistema en marcha: verifican que la API REST
+  que usa el frontend responde igual que la versión monolítica (rutas, códigos, JSON y mensajes).
+- Compatibilidad: las contraseñas (bcrypt `$2b$`) y los tokens JWT emitidos por la versión anterior siguen siendo válidos.
+
+---
+
+## Endpoints REST (orquestador)
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/api/salud` | Estado, motor de interpretación e idiomas |
+| `POST` | `/api/auth/registro` | Crea una cuenta y devuelve el token |
+| `POST` | `/api/auth/login` | Inicia sesión y devuelve el token |
+| `GET` | `/api/auth/yo` | Usuario de la sesión |
+| `POST` | `/api/informes` | Sube un PDF (`archivo`, opcional `idioma`: `es`/`en`) y devuelve la interpretación |
+| `GET` | `/api/informes` | Historial del usuario |
+| `GET` | `/api/informes/{id}` | Detalle de un informe |
+| `DELETE` | `/api/informes/{id}` | Elimina un informe |
+
+Los mensajes de error salen en el idioma del encabezado `Accept-Language` (español por defecto).
+
 ## Despliegue (Render)
 
-| Campo | Valor |
-|---|---|
-| Build Command | `pip install -r requirements.txt` |
-| Start Command | `uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
-| Health Check Path | `/api/salud` |
+Servicio web con **runtime Docker** sobre este repositorio. Como el plan gratuito tiene 512 MB, el
+contenedor usa el `lanzador-demo` (los 5 módulos en una JVM, ~200 MB): los microservicios se siguen
+comunicando por gRPC/HTTP/2 en `127.0.0.1` y solo el orquestador expone `$PORT`. Con más memoria se
+puede desplegar cada servicio por separado con la misma imagen y la variable `SERVICIO=<nombre>`.
 
-Variables de entorno: `DATABASE_URL`, `CORS_ORIGINS` (URL del frontend), `JWT_SECRET`,
-`PYTHON_VERSION`, `ANTHROPIC_API_KEY` (opcional), `IDIOMA_POR_DEFECTO` (opcional, `es` o `en`).
-
-## Pendiente
-
-- [ ] Probar el prompt con informes reales de distintos laboratorios y ajustar los guardrails.
-- [ ] Soporte a PDF escaneados (OCR).
-- [ ] Cifrado en reposo de las explicaciones en la base de datos.
-- [ ] Recuperación de contraseña por correo.
-- [ ] Migrar la base de datos gratuita de Render (caduca a los 30 días) a Neon/Supabase.
+Variables: `DATABASE_URL` (la URL de Postgres de Render, Neon o Supabase), `JWT_SECRET`, `CORS_ORIGINS`
+(URL del frontend), `ANTHROPIC_API_KEY` (opcional), `IDIOMA_POR_DEFECTO` (opcional).
+Health check: `/api/salud`.
