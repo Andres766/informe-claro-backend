@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Lanzador para entornos con poca memoria (p. ej. Render gratis, 512 MB): arranca los 4 microservicios
+  y el orquestador en UNA sola JVM, cada uno con su propio contexto de Spring y su propio servidor gRPC.
+  Siguen comunicándose por gRPC sobre HTTP/2 en 127.0.0.1; solo cambia el empaquetado, no la arquitectura.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>co.edu.ucc.informeclaro</groupId>
+    <artifactId>informe-claro</artifactId>
+    <version>1.0.0</version>
+  </parent>
+  <artifactId>lanzador-demo</artifactId>
+  <name>InformeClaro · lanzador demo (una JVM)</name>
+
+  <dependencies>
+    <dependency>
+      <groupId>co.edu.ucc.informeclaro</groupId>
+      <artifactId>servicio-usuarios</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>co.edu.ucc.informeclaro</groupId>
+      <artifactId>servicio-documentos</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>co.edu.ucc.informeclaro</groupId>
+      <artifactId>servicio-interpretacion</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>co.edu.ucc.informeclaro</groupId>
+      <artifactId>servicio-informes</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>co.edu.ucc.informeclaro</groupId>
+      <artifactId>infraestructura</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <finalName>lanzador-demo</finalName>
+    <plugins>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+        <configuration>
+          <mainClass>co.edu.ucc.informeclaro.lanzador.LanzadorDemo</mainClass>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

@@ -33,6 +33,7 @@
     <module>servicio-interpretacion</module>
     <module>servicio-informes</module>
     <module>infraestructura</module>
+    <module>lanzador-demo</module>
   </modules>
 
   <properties>
