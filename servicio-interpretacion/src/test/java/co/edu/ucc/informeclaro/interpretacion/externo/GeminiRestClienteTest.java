@@ -7,6 +7,7 @@ import co.edu.ucc.informeclaro.interpretacion.service.MotorLlmService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
@@ -26,6 +27,10 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 class GeminiRestClienteTest {
 
     private static final String URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
+    private static final String URL_RESPALDO = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent";
+    private static final String RESPUESTA_CORTA = """
+            {"candidates":[{"finishReason":"STOP","content":{"parts":[
+              {"text":"{\\"resumen\\":\\"Listo.\\",\\"valores\\":[],\\"preguntas\\":[]}"}]}}]}""";
 
     private MockRestServiceServer api;
     private GeminiRestCliente cliente;
@@ -34,7 +39,8 @@ class GeminiRestClienteTest {
     void preparar() {
         RestClient.Builder constructor = RestClient.builder().baseUrl("https://generativelanguage.googleapis.com");
         api = MockRestServiceServer.bindTo(constructor).build();
-        cliente = new GeminiRestCliente(constructor.build(), JsonMapper.builder().build(), "clave-de-prueba", "gemini-flash-latest");
+        cliente = new GeminiRestCliente(constructor.build(), JsonMapper.builder().build(), "clave-de-prueba",
+                "gemini-flash-latest", "gemini-flash-lite-latest", 0);
     }
 
     @Test
@@ -75,10 +81,30 @@ class GeminiRestClienteTest {
     }
 
     @Test
-    void sinCuotaEsUnFalloControlado() {
-        api.expect(requestTo(URL))
-                .andRespond(withStatus(org.springframework.http.HttpStatus.TOO_MANY_REQUESTS));
+    void siEstaSaturadoReintentaYLuegoUsaElModeloDeRespaldo() {
+        api.expect(requestTo(URL)).andRespond(withStatus(HttpStatus.SERVICE_UNAVAILABLE));
+        api.expect(requestTo(URL)).andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS));
+        api.expect(requestTo(URL_RESPALDO)).andRespond(withSuccess(RESPUESTA_CORTA, MediaType.APPLICATION_JSON));
+
+        assertThat(cliente.interpretar("sistema", "usuario").resumen()).isEqualTo("Listo.");
+        api.verify();
+    }
+
+    @Test
+    void siTodosLosModelosEstanSaturadosEsUnFalloControlado() {
+        for (String url : new String[] {URL, URL, URL_RESPALDO, URL_RESPALDO}) {
+            api.expect(requestTo(url)).andRespond(withStatus(HttpStatus.SERVICE_UNAVAILABLE));
+        }
         assertThatThrownBy(() -> cliente.interpretar("sistema", "usuario"))
                 .isInstanceOf(LlmNoDisponibleException.class);
+        api.verify();
+    }
+
+    @Test
+    void unaPeticionInvalidaNoSeReintenta() {
+        api.expect(requestTo(URL)).andRespond(withStatus(HttpStatus.BAD_REQUEST));
+        assertThatThrownBy(() -> cliente.interpretar("sistema", "usuario"))
+                .isInstanceOf(LlmNoDisponibleException.class);
+        api.verify();
     }
 }
