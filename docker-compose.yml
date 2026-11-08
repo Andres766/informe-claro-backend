@@ -1,0 +1,81 @@
+# InformeClaro en local: una base de datos única + 4 microservicios + el orquestador.
+#   docker compose up --build        ->  API REST en http://localhost:8000
+# Comunicación interna entre contenedores: gRPC sobre HTTP/2 (puertos 9091-9094, no publicados).
+# Comunicación con terceros (Anthropic): REST, desde servicio-interpretacion.
+
+x-servicio: &servicio
+  build: .
+  image: informeclaro-microservicios:local
+  restart: unless-stopped
+  environment: &entorno-base
+    DATABASE_URL: jdbc:postgresql://base-datos:5432/informeclaro
+    DB_USUARIO: informeclaro
+    DB_CLAVE: informeclaro
+    JAVA_OPTS: "-XX:+UseSerialGC -Xmx128m"
+  depends_on:
+    base-datos:
+      condition: service_healthy
+
+services:
+  base-datos:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: informeclaro
+      POSTGRES_USER: informeclaro
+      POSTGRES_PASSWORD: informeclaro
+    ports:
+      - "5435:5432"
+    volumes:
+      - datos:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U informeclaro -d informeclaro"]
+      interval: 3s
+      retries: 20
+
+  servicio-usuarios:
+    <<: *servicio
+    environment:
+      <<: *entorno-base
+      SERVICIO: servicio-usuarios
+      JWT_SECRET: ${JWT_SECRET:-cambia-esta-clave-local-de-al-menos-32-bytes}
+
+  servicio-documentos:
+    <<: *servicio
+    environment:
+      <<: *entorno-base
+      SERVICIO: servicio-documentos
+
+  servicio-interpretacion:
+    <<: *servicio
+    environment:
+      <<: *entorno-base
+      SERVICIO: servicio-interpretacion
+      DESTINO_DOCUMENTOS: servicio-documentos:9092
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+
+  servicio-informes:
+    <<: *servicio
+    environment:
+      <<: *entorno-base
+      SERVICIO: servicio-informes
+
+  infraestructura:
+    <<: *servicio
+    environment:
+      SERVICIO: infraestructura
+      JAVA_OPTS: "-XX:+UseSerialGC -Xmx128m"
+      DESTINO_USUARIOS: servicio-usuarios:9091
+      DESTINO_DOCUMENTOS: servicio-documentos:9092
+      DESTINO_INTERPRETACION: servicio-interpretacion:9093
+      DESTINO_INFORMES: servicio-informes:9094
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+    ports:
+      - "8000:8000"
+    depends_on:
+      - servicio-usuarios
+      - servicio-documentos
+      - servicio-interpretacion
+      - servicio-informes
+
+volumes:
+  datos:
