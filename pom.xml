@@ -27,6 +27,7 @@
 
   <modules>
     <module>contratos-grpc</module>
+    <module>comun</module>
   </modules>
 
   <properties>
