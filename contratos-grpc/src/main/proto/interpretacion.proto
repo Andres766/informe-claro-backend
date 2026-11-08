@@ -1,0 +1,49 @@
+// Microservicio de interpretación: explica cada valor en lenguaje sencillo (Claude por REST o
+// motor por reglas), aplica los guardrails clínicos y sugiere preguntas para el médico.
+syntax = "proto3";
+
+package informeclaro.interpretacion;
+
+import "comun.proto";
+
+option java_multiple_files = true;
+option java_package = "co.edu.ucc.informeclaro.grpc.interpretacion";
+
+service InterpretacionServicio {
+  rpc Interpretar (InterpretarRequest) returns (InterpretacionReply);
+  rpc ObtenerAviso (AvisoRequest) returns (AvisoReply);
+  rpc Estado (informeclaro.comun.Vacio) returns (EstadoReply);
+}
+
+message InterpretarRequest {
+  string texto = 1;   // texto ya anonimizado
+  string idioma = 2;  // "es" o "en"
+}
+
+message ValorInterpretado {
+  string nombre_valor = 1;
+  string valor = 2;
+  string unidad = 3;
+  string rango_referencia = 4;
+  string estado = 5;
+  string explicacion = 6;
+}
+
+message InterpretacionReply {
+  string resumen = 1;
+  repeated ValorInterpretado valores = 2;
+  repeated string preguntas = 3;
+  string motor = 4;
+}
+
+message AvisoRequest {
+  string idioma = 1;
+}
+
+message AvisoReply {
+  string aviso = 1;
+}
+
+message EstadoReply {
+  string motor = 1;
+}

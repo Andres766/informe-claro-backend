@@ -14,3 +14,9 @@ __pycache__/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Java / Maven
+target/
+
+# Scripts locales de generación de código
+.generar/

@@ -1,0 +1,57 @@
+// Microservicio de documentos: lee el PDF en memoria (nunca lo guarda), anonimiza el texto,
+// extrae valores por reglas y los clasifica contra su rango de forma determinista.
+// Errores: INVALID_ARGUMENT con clave "pdf_ilegible" o "pdf_sin_texto".
+syntax = "proto3";
+
+package informeclaro.documentos;
+
+option java_multiple_files = true;
+option java_package = "co.edu.ucc.informeclaro.grpc.documentos";
+
+service DocumentosServicio {
+  // Extrae el texto del PDF y oculta los datos personales.
+  rpc ProcesarPdf (PdfRequest) returns (DocumentoReply);
+  // Encuentra las líneas "nombre valor unidad rango" y les asigna su estado.
+  rpc ExtraerValores (TextoRequest) returns (ValoresReply);
+  // Compara cada valor con su rango: "normal", "alto", "bajo" o "sin_rango".
+  rpc ClasificarValores (ClasificarRequest) returns (ClasificarReply);
+}
+
+message PdfRequest {
+  bytes contenido = 1;
+  string nombre_archivo = 2;
+}
+
+message DocumentoReply {
+  string texto_anonimizado = 1;
+  int32 paginas = 2;
+}
+
+message TextoRequest {
+  string texto = 1;
+}
+
+message ValorExtraido {
+  string nombre_valor = 1;
+  string valor = 2;
+  string unidad = 3;
+  string rango_referencia = 4;
+  string estado = 5;
+}
+
+message ValoresReply {
+  repeated ValorExtraido valores = 1;
+}
+
+message ValorParaClasificar {
+  string valor = 1;
+  string rango_referencia = 2;
+}
+
+message ClasificarRequest {
+  repeated ValorParaClasificar valores = 1;
+}
+
+message ClasificarReply {
+  repeated string estados = 1;
+}

@@ -1,0 +1,77 @@
+// Microservicio de informes: guarda y consulta el historial de cada usuario
+// (valores extraídos, explicación y preguntas; nunca el PDF).
+// Errores: NOT_FOUND con clave "informe_no_encontrado" (también si el informe es de otro usuario).
+syntax = "proto3";
+
+package informeclaro.informes;
+
+import "comun.proto";
+
+option java_multiple_files = true;
+option java_package = "co.edu.ucc.informeclaro.grpc.informes";
+
+service InformesServicio {
+  rpc Guardar (GuardarInformeRequest) returns (InformeReply);
+  rpc Listar (ListarRequest) returns (ListaInformesReply);
+  rpc Obtener (InformeIdRequest) returns (InformeReply);
+  rpc Eliminar (InformeIdRequest) returns (informeclaro.comun.Vacio);
+}
+
+message ValorInforme {
+  int64 id = 1;
+  string nombre_valor = 2;
+  string unidad = 3;
+  string valor = 4;
+  string rango_referencia = 5;
+  string estado = 6;
+  string explicacion_ia = 7;
+}
+
+message PreguntaInforme {
+  int64 id = 1;
+  string texto_pregunta = 2;
+}
+
+message GuardarInformeRequest {
+  int64 usuario_id = 1;
+  string nombre_archivo = 2;
+  string resumen = 3;
+  string motor = 4;
+  string idioma = 5;
+  repeated ValorInforme valores = 6;
+  repeated string preguntas = 7;
+}
+
+message InformeReply {
+  int64 id = 1;
+  string nombre_archivo = 2;
+  string fecha_carga = 3;  // ISO-8601 en UTC
+  string motor = 4;
+  string idioma = 5;
+  string resumen = 6;
+  repeated ValorInforme valores = 7;
+  repeated PreguntaInforme preguntas = 8;
+}
+
+message ListarRequest {
+  int64 usuario_id = 1;
+}
+
+message InformeResumen {
+  int64 id = 1;
+  string nombre_archivo = 2;
+  string fecha_carga = 3;
+  string motor = 4;
+  string idioma = 5;
+  int32 total_valores = 6;
+  int32 fuera_de_rango = 7;
+}
+
+message ListaInformesReply {
+  repeated InformeResumen informes = 1;
+}
+
+message InformeIdRequest {
+  int64 id = 1;
+  int64 usuario_id = 2;
+}

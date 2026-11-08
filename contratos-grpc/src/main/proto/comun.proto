@@ -1,0 +1,9 @@
+// Tipos compartidos por los contratos gRPC de InformeClaro.
+syntax = "proto3";
+
+package informeclaro.comun;
+
+option java_multiple_files = true;
+option java_package = "co.edu.ucc.informeclaro.grpc.comun";
+
+message Vacio {}

@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  InformeClaro · monorepositorio de microservicios.
+
+  Comunicación:
+    - Entre microservicios: gRPC sobre HTTP/2 (contratos en contratos-grpc).
+    - Con APIs de terceros (Anthropic): REST.
+    - Con el navegador: REST, expuesto solo por el módulo infraestructura (orquestador).
+  Todos los servicios comparten una única base de datos PostgreSQL (demo).
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>4.0.6</version>
+    <relativePath/>
+  </parent>
+
+  <groupId>co.edu.ucc.informeclaro</groupId>
+  <artifactId>informe-claro</artifactId>
+  <version>1.0.0</version>
+  <packaging>pom</packaging>
+  <name>InformeClaro · microservicios</name>
+
+  <modules>
+    <module>contratos-grpc</module>
+  </modules>
+
+  <properties>
+    <java.version>21</java.version>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <grpc.version>1.85.1</grpc.version>
+    <protobuf.version>3.25.9</protobuf.version>
+    <jjwt.version>0.12.6</jjwt.version>
+    <pdfbox.version>3.0.8</pdfbox.version>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-bom</artifactId>
+        <version>${grpc.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.google.protobuf</groupId>
+        <artifactId>protobuf-java</artifactId>
+        <version>${protobuf.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>co.edu.ucc.informeclaro</groupId>
+        <artifactId>contratos-grpc</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>co.edu.ucc.informeclaro</groupId>
+        <artifactId>comun</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.jsonwebtoken</groupId>
+        <artifactId>jjwt-api</artifactId>
+        <version>${jjwt.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.jsonwebtoken</groupId>
+        <artifactId>jjwt-impl</artifactId>
+        <version>${jjwt.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.jsonwebtoken</groupId>
+        <artifactId>jjwt-gson</artifactId>
+        <version>${jjwt.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.pdfbox</groupId>
+        <artifactId>pdfbox</artifactId>
+        <version>${pdfbox.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+</project>

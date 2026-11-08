@@ -1,0 +1,41 @@
+// Microservicio de usuarios: cuentas, contraseñas (bcrypt) y tokens de sesión (JWT).
+// Errores: ALREADY_EXISTS (correo repetido), UNAUTHENTICATED (credenciales o token inválidos).
+// La descripción del Status lleva la clave del mensaje traducible.
+syntax = "proto3";
+
+package informeclaro.usuarios;
+
+option java_multiple_files = true;
+option java_package = "co.edu.ucc.informeclaro.grpc.usuarios";
+
+service UsuariosServicio {
+  rpc Registrar (RegistroRequest) returns (SesionReply);
+  rpc IniciarSesion (LoginRequest) returns (SesionReply);
+  rpc ValidarToken (TokenRequest) returns (UsuarioReply);
+}
+
+message RegistroRequest {
+  string nombre = 1;
+  string email = 2;
+  string password = 3;
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message TokenRequest {
+  string token = 1;
+}
+
+message UsuarioReply {
+  int64 id = 1;
+  string nombre = 2;
+  string email = 3;
+}
+
+message SesionReply {
+  string access_token = 1;
+  UsuarioReply usuario = 2;
+}
