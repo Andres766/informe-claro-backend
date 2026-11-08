@@ -1,0 +1,8 @@
+grpc:
+  servidor:
+    puerto: 0
+informeclaro:
+  base-datos:
+    url: jdbc:h2:mem:informes;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    usuario: sa
+    clave: ""

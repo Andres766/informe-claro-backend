@@ -31,6 +31,7 @@
     <module>servicio-usuarios</module>
     <module>servicio-documentos</module>
     <module>servicio-interpretacion</module>
+    <module>servicio-informes</module>
   </modules>
 
   <properties>
