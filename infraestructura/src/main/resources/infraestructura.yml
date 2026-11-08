@@ -1,0 +1,31 @@
+# Infraestructura / orquestador: única API REST pública. Habla con los microservicios por gRPC.
+spring:
+  application:
+    name: infraestructura
+  autoconfigure:
+    # El orquestador no tiene base de datos (solo importa cuando comparte JVM en el lanzador-demo).
+    exclude:
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceInitializationAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceTransactionManagerAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.JdbcClientAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.JdbcTemplateAutoConfiguration
+      - org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration
+      - org.springframework.boot.data.jpa.autoconfigure.DataJpaRepositoriesAutoConfiguration
+  servlet:
+    multipart:
+      max-file-size: 25MB
+      max-request-size: 26MB
+
+server:
+  port: ${PORT:8000}
+
+informeclaro:
+  servicios:                      # destinos gRPC (HTTP/2) de cada microservicio
+    usuarios: ${DESTINO_USUARIOS:127.0.0.1:9091}
+    documentos: ${DESTINO_DOCUMENTOS:127.0.0.1:9092}
+    interpretacion: ${DESTINO_INTERPRETACION:127.0.0.1:9093}
+    informes: ${DESTINO_INFORMES:127.0.0.1:9094}
+  cors-origins: ${CORS_ORIGINS:http://localhost:5173}
+  idioma-por-defecto: ${IDIOMA_POR_DEFECTO:es}
+  max-pdf-mb: ${MAX_PDF_MB:10}
