@@ -30,6 +30,7 @@
     <module>comun</module>
     <module>servicio-usuarios</module>
     <module>servicio-documentos</module>
+    <module>servicio-interpretacion</module>
   </modules>
 
   <properties>

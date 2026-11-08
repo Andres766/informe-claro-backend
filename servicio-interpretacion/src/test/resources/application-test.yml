@@ -1,0 +1,12 @@
+grpc:
+  servidor:
+    puerto: 0
+informeclaro:
+  servicios:
+    documentos: 127.0.0.1:1
+  anthropic:
+    api-key: ""
+  base-datos:
+    url: jdbc:h2:mem:interpretacion;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    usuario: sa
+    clave: ""
