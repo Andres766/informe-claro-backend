@@ -1,7 +1,7 @@
 package co.edu.ucc.informeclaro.interpretacion.service;
 
 import co.edu.ucc.informeclaro.interpretacion.dto.InterpretacionDto;
-import co.edu.ucc.informeclaro.interpretacion.externo.AnthropicRestCliente;
+import co.edu.ucc.informeclaro.interpretacion.externo.LlmNoDisponibleException;
 import co.edu.ucc.informeclaro.interpretacion.model.RegistroInterpretacion;
 import co.edu.ucc.informeclaro.interpretacion.repository.RegistroInterpretacionRepository;
 import io.grpc.StatusRuntimeException;
@@ -12,8 +12,8 @@ import org.springframework.stereotype.Service;
 import java.util.Map;
 
 /**
- * Caso de uso: elegir el motor (Claude si hay API key; si no, reglas), caer al motor por reglas
- * si Claude falla, y dejar constancia en la bitácora.
+ * Caso de uso: elegir el motor (IA si hay API key; si no, reglas), caer al motor por reglas
+ * si la IA falla, y dejar constancia en la bitácora.
  */
 @Service
 public class InterpretacionService {
@@ -28,13 +28,13 @@ public class InterpretacionService {
             "en", "This explanation is for information only and is not a diagnosis. "
                     + "Always ask your treating doctor to interpret your results.");
 
-    private final MotorClaudeService claude;
+    private final MotorLlmService llm;
     private final MotorReglasService reglas;
     private final RegistroInterpretacionRepository registros;
 
-    public InterpretacionService(MotorClaudeService claude, MotorReglasService reglas,
+    public InterpretacionService(MotorLlmService llm, MotorReglasService reglas,
                                  RegistroInterpretacionRepository registros) {
-        this.claude = claude;
+        this.llm = llm;
         this.reglas = reglas;
         this.registros = registros;
     }
@@ -44,14 +44,14 @@ public class InterpretacionService {
         long inicio = System.currentTimeMillis();
         InterpretacionDto resultado;
         int activaciones = 0;
-        if (!claude.disponible()) {
+        if (!llm.disponible()) {
             resultado = reglas.interpretar(texto, lengua, MOTOR_DEMO);
         } else {
             try {
-                MotorClaudeService.Resultado r = claude.interpretar(texto, lengua);
+                MotorLlmService.Resultado r = llm.interpretar(texto, lengua);
                 resultado = r.interpretacion();
                 activaciones = r.guardrailsActivados();
-            } catch (AnthropicRestCliente.ClaudeNoDisponibleException | StatusRuntimeException e) {
+            } catch (LlmNoDisponibleException | StatusRuntimeException e) {
                 log.error("Fallo en el LLM, se usa el motor por reglas: {}", e.getMessage());
                 resultado = reglas.interpretar(texto, lengua, MOTOR_RESPALDO);
             }
@@ -66,6 +66,6 @@ public class InterpretacionService {
     }
 
     public String motorActual() {
-        return claude.disponible() ? claude.modelo() : MOTOR_DEMO;
+        return llm.disponible() ? llm.modelo() : MOTOR_DEMO;
     }
 }

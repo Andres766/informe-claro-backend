@@ -4,6 +4,8 @@ grpc:
 informeclaro:
   servicios:
     documentos: 127.0.0.1:1
+  gemini:
+    api-key: ""
   anthropic:
     api-key: ""
   base-datos:

@@ -3,9 +3,9 @@ package co.edu.ucc.informeclaro.interpretacion.service;
 import co.edu.ucc.informeclaro.interpretacion.cliente.ClienteDocumentos;
 import co.edu.ucc.informeclaro.interpretacion.dto.InterpretacionDto;
 import co.edu.ucc.informeclaro.interpretacion.dto.RangoDto;
-import co.edu.ucc.informeclaro.interpretacion.dto.ResultadoClaudeDto;
+import co.edu.ucc.informeclaro.interpretacion.dto.ResultadoLlmDto;
 import co.edu.ucc.informeclaro.interpretacion.dto.ValorInterpretadoDto;
-import co.edu.ucc.informeclaro.interpretacion.externo.AnthropicRestCliente;
+import co.edu.ucc.informeclaro.interpretacion.externo.ClienteLlm;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -13,11 +13,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Motor con Claude: el prompt traza la línea clínica (explica sin interpretar). El estado de cada
- * valor NO lo decide el modelo: lo calcula el microservicio de documentos comparando números.
+ * Motor con IA (Gemini o Claude, por REST): el prompt traza la línea clínica (explica sin
+ * interpretar). El estado de cada valor NO lo decide el modelo: lo calcula el microservicio de
+ * documentos comparando números.
  */
 @Service
-public class MotorClaudeService {
+public class MotorLlmService {
 
     static final String SYSTEM_PROMPT = """
             Eres InformeClaro, un asistente que traduce resultados de laboratorio clínico a lenguaje \
@@ -58,22 +59,22 @@ public class MotorClaudeService {
                     + "even if the report is in Spanish. Keep test names as printed in the report. "
                     + "The same clinical line applies: never diagnose, never suggest causes or treatment.");
 
-    private final AnthropicRestCliente claude;
+    private final ClienteLlm llm;
     private final ClienteDocumentos documentos;
     private final GuardrailsService guardrails;
 
-    public MotorClaudeService(AnthropicRestCliente claude, ClienteDocumentos documentos, GuardrailsService guardrails) {
-        this.claude = claude;
+    public MotorLlmService(ClienteLlm llm, ClienteDocumentos documentos, GuardrailsService guardrails) {
+        this.llm = llm;
         this.documentos = documentos;
         this.guardrails = guardrails;
     }
 
     public boolean disponible() {
-        return claude.configurado();
+        return llm.configurado();
     }
 
     public String modelo() {
-        return claude.modelo();
+        return llm.modelo();
     }
 
     /** Devuelve la interpretación y cuántas veces actuaron los guardrails. */
@@ -81,16 +82,16 @@ public class MotorClaudeService {
         String mensaje = "<informe>\n" + texto + "\n</informe>\n\n"
                 + "Extrae y explica cada valor del informe y sugiere preguntas para el médico.\n"
                 + INSTRUCCION_IDIOMA.getOrDefault(idioma, INSTRUCCION_IDIOMA.get("es"));
-        ResultadoClaudeDto datos = claude.interpretar(SYSTEM_PROMPT, mensaje);
+        ResultadoLlmDto datos = llm.interpretar(SYSTEM_PROMPT, mensaje);
 
-        List<ResultadoClaudeDto.Valor> crudos = datos.valores() == null ? List.of() : datos.valores();
+        List<ResultadoLlmDto.Valor> crudos = datos.valores() == null ? List.of() : datos.valores();
         List<String> estados = documentos.clasificar(crudos.stream()
                 .map(v -> new RangoDto(v.valor(), v.rangoReferencia())).toList());
 
         int activaciones = 0;
         List<ValorInterpretadoDto> valores = new ArrayList<>();
         for (int i = 0; i < crudos.size(); i++) {
-            ResultadoClaudeDto.Valor v = crudos.get(i);
+            ResultadoLlmDto.Valor v = crudos.get(i);
             GuardrailsService.Revision explicacion = guardrails.revisar(v.explicacion(), idioma);
             activaciones += explicacion.activado() ? 1 : 0;
             valores.add(new ValorInterpretadoDto(v.nombreValor(), v.valor(), nulo(v.unidad()), nulo(v.rangoReferencia()),
@@ -101,7 +102,7 @@ public class MotorClaudeService {
         List<String> preguntas = datos.preguntas() == null ? List.of()
                 : datos.preguntas().stream().filter(p -> !guardrails.cruzaLaLinea(p)).toList();
 
-        return new Resultado(new InterpretacionDto(resumen.texto(), valores, preguntas, claude.modelo()), activaciones);
+        return new Resultado(new InterpretacionDto(resumen.texto(), valores, preguntas, llm.modelo()), activaciones);
     }
 
     private static String nulo(String texto) {

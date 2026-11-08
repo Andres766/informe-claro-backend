@@ -57,7 +57,7 @@ public class OrquestadorInformesService {
         String idioma = idiomaPedido != null ? Idiomas.normalizar(idiomaPedido, idiomaNavegador) : idiomaNavegador;
 
         String texto = documentos.procesarPdf(contenido, nombre);       // gRPC → documentos
-        InterpretacionReply r = interpretacion.interpretar(texto, idioma); // gRPC → interpretación (→ REST Claude)
+        InterpretacionReply r = interpretacion.interpretar(texto, idioma); // gRPC → interpretación (→ REST Gemini/Claude)
         if (r.getValoresCount() == 0) {
             throw new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, "sin_valores");
         }

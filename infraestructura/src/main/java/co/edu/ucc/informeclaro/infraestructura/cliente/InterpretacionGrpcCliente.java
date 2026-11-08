@@ -20,7 +20,7 @@ public class InterpretacionGrpcCliente {
     }
 
     public InterpretacionReply interpretar(String texto, String idioma) {
-        // Claude puede tardar con informes largos; el motor por reglas responde al instante.
+        // La IA puede tardar con informes largos; el motor por reglas responde al instante.
         return stub.withDeadlineAfter(6, TimeUnit.MINUTES)
                 .interpretar(InterpretarRequest.newBuilder().setTexto(texto).setIdioma(idioma).build());
     }

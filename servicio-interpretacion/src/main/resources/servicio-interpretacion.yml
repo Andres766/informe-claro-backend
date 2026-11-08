@@ -1,5 +1,5 @@
 # Microservicio de interpretación: sin servidor web, solo gRPC (HTTP/2).
-# Sale hacia el microservicio de documentos por gRPC y hacia la API de Anthropic por REST.
+# Sale hacia el microservicio de documentos por gRPC y hacia la API de IA (Gemini o Claude) por REST.
 spring:
   application:
     name: servicio-interpretacion
@@ -18,7 +18,11 @@ grpc:
 informeclaro:
   servicios:
     documentos: ${DESTINO_DOCUMENTOS:127.0.0.1:9092}   # gRPC
-  anthropic:                                           # REST (API de terceros)
+  gemini:                                              # REST (API de terceros); se usa si tiene key
+    url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com}
+    api-key: ${GEMINI_API_KEY:}
+    modelo: ${GEMINI_MODEL:gemini-flash-latest}
+  anthropic:                                           # REST (API de terceros); alternativa a Gemini
     url: ${ANTHROPIC_BASE_URL:https://api.anthropic.com}
     api-key: ${ANTHROPIC_API_KEY:}
     modelo: ${LLM_MODEL:claude-opus-5}

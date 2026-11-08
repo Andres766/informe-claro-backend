@@ -12,7 +12,7 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Motor por reglas (modo demo o respaldo cuando Claude no está disponible): glosario y
+ * Motor por reglas (modo demo o respaldo cuando la IA no está disponible): glosario y
  * plantillas en español e inglés, sin diagnosticar.
  */
 @Service

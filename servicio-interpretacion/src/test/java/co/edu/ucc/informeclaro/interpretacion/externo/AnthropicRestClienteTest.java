@@ -3,7 +3,7 @@ package co.edu.ucc.informeclaro.interpretacion.externo;
 import co.edu.ucc.informeclaro.interpretacion.DocumentosFalso;
 import co.edu.ucc.informeclaro.interpretacion.dto.InterpretacionDto;
 import co.edu.ucc.informeclaro.interpretacion.service.GuardrailsService;
-import co.edu.ucc.informeclaro.interpretacion.service.MotorClaudeService;
+import co.edu.ucc.informeclaro.interpretacion.service.MotorLlmService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
@@ -51,8 +51,8 @@ class AnthropicRestClienteTest {
                           {"type":"text","text":"{\\"resumen\\":\\"Your report has two values.\\",\\"valores\\":[{\\"nombre_valor\\":\\"Glucose\\",\\"valor\\":\\"90\\",\\"unidad\\":\\"mg/dL\\",\\"rango_referencia\\":\\"70 - 100\\",\\"explicacion\\":\\"This test measures sugar.\\"},{\\"nombre_valor\\":\\"TSH\\",\\"valor\\":\\"9\\",\\"unidad\\":\\"uUI/mL\\",\\"rango_referencia\\":\\"\\",\\"explicacion\\":\\"You have a thyroid disease.\\"}],\\"preguntas\\":[\\"How do these results compare with my previous tests?\\",\\"I recommend a lower dose?\\"]}"}
                         ]}""", MediaType.APPLICATION_JSON));
 
-        MotorClaudeService motor = new MotorClaudeService(cliente, new DocumentosFalso(), new GuardrailsService());
-        MotorClaudeService.Resultado r = motor.interpretar("Glucose 90 mg/dL 70 - 100", "en");
+        MotorLlmService motor = new MotorLlmService(cliente, new DocumentosFalso(), new GuardrailsService());
+        MotorLlmService.Resultado r = motor.interpretar("Glucose 90 mg/dL 70 - 100", "en");
         InterpretacionDto i = r.interpretacion();
 
         api.verify();
@@ -68,6 +68,6 @@ class AnthropicRestClienteTest {
         api.expect(requestTo("https://api.anthropic.com/v1/messages"))
                 .andRespond(withSuccess("{\"stop_reason\":\"refusal\",\"content\":[]}", MediaType.APPLICATION_JSON));
         assertThatThrownBy(() -> cliente.interpretar("sistema", "usuario"))
-                .isInstanceOf(AnthropicRestCliente.ClaudeNoDisponibleException.class);
+                .isInstanceOf(LlmNoDisponibleException.class);
     }
 }
