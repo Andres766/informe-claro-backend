@@ -1,0 +1,4 @@
+# En las pruebas se carga la configuración propia del módulo.
+spring:
+  config:
+    import: classpath:servicio-documentos.yml

@@ -29,6 +29,7 @@
     <module>contratos-grpc</module>
     <module>comun</module>
     <module>servicio-usuarios</module>
+    <module>servicio-documentos</module>
   </modules>
 
   <properties>

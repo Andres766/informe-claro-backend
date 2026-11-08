@@ -1,0 +1,22 @@
+# Microservicio de documentos: sin servidor web, solo gRPC (HTTP/2).
+spring:
+  application:
+    name: servicio-documentos
+  main:
+    web-application-type: none
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate.jdbc.time_zone: UTC
+
+grpc:
+  servidor:
+    puerto: ${PUERTO_GRPC_DOCUMENTOS:9092}
+
+informeclaro:
+  base-datos:
+    url: ${DATABASE_URL:jdbc:postgresql://127.0.0.1:5435/informeclaro}
+    usuario: ${DB_USUARIO:informeclaro}
+    clave: ${DB_CLAVE:informeclaro}
+    pool: ${DB_POOL:2}
