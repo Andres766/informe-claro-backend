@@ -79,7 +79,7 @@ Los errores de negocio viajan como `Status` de gRPC (por ejemplo `NOT_FOUND` con
 1. **infraestructura** valida el token (gRPC → `servicio-usuarios`), el tipo y el tamaño del archivo.
 2. gRPC → `servicio-documentos`: extrae el texto del PDF en memoria y oculta los datos personales.
 3. gRPC → `servicio-interpretacion`, que:
-   - con API key, llama a la IA por **REST** con salida estructurada (JSON Schema): Gemini si hay `GEMINI_API_KEY`, si no Claude con `ANTHROPIC_API_KEY`; sin key o si falla (por ejemplo, sin cuota), usa el motor por reglas;
+   - con API key, llama a la IA por **REST** con salida estructurada (JSON Schema): Gemini si hay `GEMINI_API_KEY`, si no Claude con `ANTHROPIC_API_KEY`; si Gemini está saturado, reintenta y prueba un modelo de respaldo; sin key o si todo falla, usa el motor por reglas;
    - pide por gRPC a `servicio-documentos` el estado de cada valor (lo decide el código, no el LLM);
    - aplica los guardrails y devuelve explicación, resumen y preguntas.
 4. gRPC → `servicio-informes`: guarda el resultado (sin el PDF).
@@ -126,7 +126,7 @@ Cada módulo lee su propia configuración (`servicio-usuarios.yml`, `infraestruc
 
 ### Pruebas
 
-- `./mvnw test` — 77 pruebas: cada microservicio se prueba a través de su **API gRPC real** (HTTP/2) con
+- `./mvnw test` — 79 pruebas: cada microservicio se prueba a través de su **API gRPC real** (HTTP/2) con
   una base H2; los clientes REST de Gemini y Anthropic se prueban sin salir a internet.
 - `pytest pruebas-contrato` — pruebas de **contrato** contra el sistema en marcha: verifican que la API REST
   que usa el frontend responde igual que la versión monolítica (rutas, códigos, JSON y mensajes).
@@ -157,6 +157,6 @@ comunicando por gRPC/HTTP/2 en `127.0.0.1` y solo el orquestador expone `$PORT`.
 puede desplegar cada servicio por separado con la misma imagen y la variable `SERVICIO=<nombre>`.
 
 Variables: `DATABASE_URL` (la URL de Postgres de Render, Neon o Supabase), `JWT_SECRET`, `CORS_ORIGINS`
-(URL del frontend), `GEMINI_API_KEY` (IA real; opcional, sin ella modo demo), `GEMINI_MODEL` (opcional),
+(URL del frontend), `GEMINI_API_KEY` (IA real; opcional, sin ella modo demo), `GEMINI_MODEL` y `GEMINI_MODEL_RESPALDO` (opcionales),
 `ANTHROPIC_API_KEY` (alternativa a Gemini), `IDIOMA_POR_DEFECTO` (opcional).
 Health check: `/api/salud`.
