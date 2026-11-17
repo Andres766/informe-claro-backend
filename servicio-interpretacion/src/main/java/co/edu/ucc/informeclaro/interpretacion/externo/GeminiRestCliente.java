@@ -79,31 +79,44 @@ public class GeminiRestCliente implements ClienteLlm {
         if (modeloRespaldo != null && !modeloRespaldo.isBlank() && !modeloRespaldo.equals(modelo)) {
             modelos.add(modeloRespaldo);
         }
-        long limite = System.currentTimeMillis() + presupuestoMs;
+        long inicio = System.currentTimeMillis();
+        List<String> historial = new ArrayList<>(); // qué pasó en cada intento, para la bitácora
         LlmNoDisponibleException ultimo = null;
         for (String m : modelos) {
             for (int intento = 1; intento <= INTENTOS_POR_MODELO; intento++) {
-                if (ultimo != null && System.currentTimeMillis() >= limite) {
-                    throw new LlmNoDisponibleException("Se agotó el tiempo para Gemini: " + ultimo.getMessage(), ultimo);
+                if (ultimo != null && System.currentTimeMillis() - inicio >= presupuestoMs) {
+                    historial.add("se agotó el tiempo");
+                    throw new LlmNoDisponibleException(String.join(" | ", historial), ultimo);
                 }
                 try {
-                    return llamarConPensamientoOpcional(m, instruccionSistema, mensajeUsuario);
+                    return llamarConPensamientoOpcional(m, instruccionSistema, mensajeUsuario, historial);
                 } catch (FalloPorTiempoException e) {
                     ultimo = e;
+                    historial.add(m + ": " + resumir(e));
                     log.warn("Gemini {} tardó demasiado, se prueba el siguiente modelo", m);
                     break;
                 } catch (FalloPasajeroException e) {
                     ultimo = e;
+                    historial.add(m + ": " + resumir(e));
                     log.warn("Gemini {} no disponible (intento {} de {}): {}", m, intento, INTENTOS_POR_MODELO, e.getMessage());
                     esperar(esperaMs * intento);
+                } catch (LlmNoDisponibleException e) {
+                    historial.add(m + ": " + resumir(e));
+                    throw new LlmNoDisponibleException(String.join(" | ", historial), e);
                 }
             }
         }
-        throw ultimo;
+        throw new LlmNoDisponibleException(String.join(" | ", historial), ultimo);
+    }
+
+    private static String resumir(Exception e) {
+        String mensaje = String.valueOf(e.getMessage()).replaceAll("\\s+", " ");
+        return mensaje.length() <= 200 ? mensaje : mensaje.substring(0, 200) + "…";
     }
 
     /** Pide no "pensar" (más rápido; explicar valores no lo necesita). Si el modelo no lo acepta, repite sin ese ajuste. */
-    private ResultadoLlmDto llamarConPensamientoOpcional(String modelo, String instruccionSistema, String mensajeUsuario) {
+    private ResultadoLlmDto llamarConPensamientoOpcional(String modelo, String instruccionSistema, String mensajeUsuario,
+                                                         List<String> historial) {
         boolean conPensamiento = enviarPensamiento.get();
         try {
             return llamar(modelo, instruccionSistema, mensajeUsuario, conPensamiento);
@@ -112,6 +125,7 @@ public class GeminiRestCliente implements ClienteLlm {
                 throw e;
             }
             enviarPensamiento.set(false);
+            historial.add(modelo + ": rechazó thinkingConfig (" + resumir(e) + ")");
             log.warn("Gemini {} rechazó thinkingConfig; se continúa sin él: {}", modelo, e.getMessage());
             return llamar(modelo, instruccionSistema, mensajeUsuario, false);
         }

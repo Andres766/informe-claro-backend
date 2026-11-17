@@ -148,7 +148,8 @@ class GeminiRestClienteTest {
         api.expect(requestTo(URL)).andRespond(withStatus(HttpStatus.SERVICE_UNAVAILABLE));
         assertThatThrownBy(() -> apurado.interpretar("sistema", "usuario"))
                 .isInstanceOf(LlmNoDisponibleException.class)
-                .hasMessageContaining("Se agotó el tiempo");
+                .hasMessageContaining("gemini-flash-latest: Fallo al llamar a la API de Gemini: 503")
+                .hasMessageContaining("se agotó el tiempo");
         api.verify();
     }
 

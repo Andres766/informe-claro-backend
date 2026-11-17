@@ -44,6 +44,7 @@ public class InterpretacionService {
         long inicio = System.currentTimeMillis();
         InterpretacionDto resultado;
         int activaciones = 0;
+        String causaRespaldo = null;
         if (!llm.disponible()) {
             resultado = reglas.interpretar(texto, lengua, MOTOR_DEMO);
         } else {
@@ -53,11 +54,12 @@ public class InterpretacionService {
                 activaciones = r.guardrailsActivados();
             } catch (LlmNoDisponibleException | StatusRuntimeException e) {
                 log.error("Fallo en el LLM, se usa el motor por reglas: {}", e.getMessage());
+                causaRespaldo = e.getMessage();
                 resultado = reglas.interpretar(texto, lengua, MOTOR_RESPALDO);
             }
         }
         registros.save(new RegistroInterpretacion(resultado.motor(), lengua, resultado.valores().size(),
-                activaciones, System.currentTimeMillis() - inicio));
+                activaciones, System.currentTimeMillis() - inicio, causaRespaldo));
         return resultado;
     }
 

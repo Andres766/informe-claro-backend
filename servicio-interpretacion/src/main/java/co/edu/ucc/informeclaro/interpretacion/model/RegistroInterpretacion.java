@@ -10,8 +10,8 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 /**
- * Bitácora de cada interpretación: qué motor respondió, en qué idioma, cuánto tardó y cuántas
- * veces actuaron los guardrails clínicos. No guarda el texto del informe.
+ * Bitácora de cada interpretación: qué motor respondió, en qué idioma, cuánto tardó, cuántas
+ * veces actuaron los guardrails clínicos y, si la IA falló, por qué. No guarda el texto del informe.
  */
 @Entity
 @Table(name = "registro_interpretacion")
@@ -39,16 +39,29 @@ public class RegistroInterpretacion {
     @Column(name = "duracion_ms", nullable = false)
     private long duracionMs;
 
+    // Motivo por el que se usó el motor por reglas en lugar de la IA (nulo si la IA respondió).
+    @Column(name = "causa_respaldo", length = MAX_CAUSA)
+    private String causaRespaldo;
+
+    static final int MAX_CAUSA = 1000;
+
     protected RegistroInterpretacion() {
     }
 
     public RegistroInterpretacion(String motor, String idioma, int totalValores, int guardrailsActivados, long duracionMs) {
+        this(motor, idioma, totalValores, guardrailsActivados, duracionMs, null);
+    }
+
+    public RegistroInterpretacion(String motor, String idioma, int totalValores, int guardrailsActivados, long duracionMs,
+                                  String causaRespaldo) {
         this.fecha = Instant.now();
         this.motor = motor;
         this.idioma = idioma;
         this.totalValores = totalValores;
         this.guardrailsActivados = guardrailsActivados;
         this.duracionMs = duracionMs;
+        this.causaRespaldo = causaRespaldo == null || causaRespaldo.length() <= MAX_CAUSA
+                ? causaRespaldo : causaRespaldo.substring(0, MAX_CAUSA);
     }
 
     public Long getId() {
@@ -73,5 +86,9 @@ public class RegistroInterpretacion {
 
     public long getDuracionMs() {
         return duracionMs;
+    }
+
+    public String getCausaRespaldo() {
+        return causaRespaldo;
     }
 }
