@@ -68,6 +68,10 @@ public class RegistroInterpretacion {
         return id;
     }
 
+    public Instant getFecha() {
+        return fecha;
+    }
+
     public String getMotor() {
         return motor;
     }

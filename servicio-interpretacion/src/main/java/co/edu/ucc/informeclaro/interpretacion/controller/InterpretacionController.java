@@ -1,5 +1,6 @@
 package co.edu.ucc.informeclaro.interpretacion.controller;
 
+import co.edu.ucc.informeclaro.interpretacion.dto.EstadisticasInterpretacionDto;
 import co.edu.ucc.informeclaro.interpretacion.dto.InterpretacionDto;
 import co.edu.ucc.informeclaro.interpretacion.dto.SolicitudInterpretacionDto;
 import co.edu.ucc.informeclaro.interpretacion.service.InterpretacionService;
@@ -25,5 +26,9 @@ public class InterpretacionController {
 
     public String motor() {
         return servicio.motorActual();
+    }
+
+    public EstadisticasInterpretacionDto estadisticas() {
+        return servicio.estadisticas();
     }
 }

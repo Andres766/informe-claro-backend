@@ -4,12 +4,16 @@ import co.edu.ucc.informeclaro.comun.grpc.RespuestaGrpc;
 import co.edu.ucc.informeclaro.grpc.comun.Vacio;
 import co.edu.ucc.informeclaro.grpc.interpretacion.AvisoReply;
 import co.edu.ucc.informeclaro.grpc.interpretacion.AvisoRequest;
+import co.edu.ucc.informeclaro.grpc.interpretacion.EstadisticasInterpretacionReply;
 import co.edu.ucc.informeclaro.grpc.interpretacion.EstadoReply;
+import co.edu.ucc.informeclaro.grpc.interpretacion.FalloIa;
 import co.edu.ucc.informeclaro.grpc.interpretacion.InterpretacionReply;
 import co.edu.ucc.informeclaro.grpc.interpretacion.InterpretacionServicioGrpc;
 import co.edu.ucc.informeclaro.grpc.interpretacion.InterpretarRequest;
+import co.edu.ucc.informeclaro.grpc.interpretacion.UsoMotor;
 import co.edu.ucc.informeclaro.grpc.interpretacion.ValorInterpretado;
 import co.edu.ucc.informeclaro.interpretacion.controller.InterpretacionController;
+import co.edu.ucc.informeclaro.interpretacion.dto.EstadisticasInterpretacionDto;
 import co.edu.ucc.informeclaro.interpretacion.dto.InterpretacionDto;
 import co.edu.ucc.informeclaro.interpretacion.dto.SolicitudInterpretacionDto;
 import io.grpc.stub.StreamObserver;
@@ -39,6 +43,23 @@ public class InterpretacionGrpcApi extends InterpretacionServicioGrpc.Interpreta
     @Override
     public void estado(Vacio peticion, StreamObserver<EstadoReply> respuesta) {
         RespuestaGrpc.responder(respuesta, () -> EstadoReply.newBuilder().setMotor(controlador.motor()).build());
+    }
+
+    @Override
+    public void estadisticas(Vacio peticion, StreamObserver<EstadisticasInterpretacionReply> respuesta) {
+        RespuestaGrpc.responder(respuesta, () -> aReply(controlador.estadisticas()));
+    }
+
+    private static EstadisticasInterpretacionReply aReply(EstadisticasInterpretacionDto e) {
+        return EstadisticasInterpretacionReply.newBuilder()
+                .setTotal((int) e.total()).setDuracionPromedioMs(e.duracionPromedioMs())
+                .setGuardrailsActivados((int) e.guardrailsActivados()).setRespaldo((int) e.respaldo())
+                .addAllMotores(e.motores().stream().map(m -> UsoMotor.newBuilder().setMotor(m.motor())
+                        .setInterpretaciones((int) m.interpretaciones()).setDuracionPromedioMs(m.duracionPromedioMs())
+                        .build()).toList())
+                .addAllFallosRecientes(e.fallosRecientes().stream().map(f -> FalloIa.newBuilder()
+                        .setFecha(f.fecha().toString()).setCausa(f.causa()).build()).toList())
+                .build();
     }
 
     private static InterpretacionReply aReply(InterpretacionDto dto) {

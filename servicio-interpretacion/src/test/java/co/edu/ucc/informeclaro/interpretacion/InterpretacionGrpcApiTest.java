@@ -4,10 +4,12 @@ import co.edu.ucc.informeclaro.comun.grpc.CanalesGrpc;
 import co.edu.ucc.informeclaro.comun.grpc.ServidorGrpc;
 import co.edu.ucc.informeclaro.grpc.comun.Vacio;
 import co.edu.ucc.informeclaro.grpc.interpretacion.AvisoRequest;
+import co.edu.ucc.informeclaro.grpc.interpretacion.EstadisticasInterpretacionReply;
 import co.edu.ucc.informeclaro.grpc.interpretacion.InterpretacionReply;
 import co.edu.ucc.informeclaro.grpc.interpretacion.InterpretacionServicioGrpc;
 import co.edu.ucc.informeclaro.grpc.interpretacion.InterpretarRequest;
 import co.edu.ucc.informeclaro.interpretacion.cliente.ClienteDocumentos;
+import co.edu.ucc.informeclaro.interpretacion.model.RegistroInterpretacion;
 import co.edu.ucc.informeclaro.interpretacion.repository.RegistroInterpretacionRepository;
 import io.grpc.ManagedChannel;
 import org.junit.jupiter.api.AfterEach;
@@ -65,6 +67,23 @@ class InterpretacionGrpcApiTest {
         var registro = registros.findTopByOrderByIdDesc().orElseThrow();
         assertThat(registro.getIdioma()).isEqualTo("en");
         assertThat(registro.getTotalValores()).isEqualTo(12);
+    }
+
+    @Test
+    void lasEstadisticasResumenLaBitacoraPorMotorYMuestranLosFallos() {
+        cliente().interpretar(InterpretarRequest.newBuilder().setTexto("texto").setIdioma("es").build());
+        registros.save(new RegistroInterpretacion("respaldo (reglas)", "es", 6, 1, 3000, "gemini-flash-lite-latest: 503"));
+
+        EstadisticasInterpretacionReply e = cliente().estadisticas(Vacio.getDefaultInstance());
+        assertThat(e.getTotal()).isEqualTo((int) registros.count());
+        assertThat(e.getRespaldo()).isEqualTo(1);
+        assertThat(e.getGuardrailsActivados()).isGreaterThanOrEqualTo(1);
+        assertThat(e.getMotoresList()).anySatisfy(m -> {
+            assertThat(m.getMotor()).isEqualTo("demo (reglas)");
+            assertThat(m.getInterpretaciones()).isGreaterThanOrEqualTo(1);
+        });
+        assertThat(e.getFallosRecientesList()).first().satisfies(f ->
+                assertThat(f.getCausa()).isEqualTo("gemini-flash-lite-latest: 503"));
     }
 
     @Test

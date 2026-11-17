@@ -1,5 +1,5 @@
-// Microservicio de interpretación: explica cada valor en lenguaje sencillo (Claude por REST o
-// motor por reglas), aplica los guardrails clínicos y sugiere preguntas para el médico.
+// Microservicio de interpretación: explica cada valor en lenguaje sencillo (IA por REST —Gemini o
+// Claude— o motor por reglas), aplica los guardrails clínicos y sugiere preguntas para el médico.
 syntax = "proto3";
 
 package informeclaro.interpretacion;
@@ -13,6 +13,8 @@ service InterpretacionServicio {
   rpc Interpretar (InterpretarRequest) returns (InterpretacionReply);
   rpc ObtenerAviso (AvisoRequest) returns (AvisoReply);
   rpc Estado (informeclaro.comun.Vacio) returns (EstadoReply);
+  // Uso de cada motor, tiempos y fallos recientes de la IA, para el panel de administración.
+  rpc Estadisticas (informeclaro.comun.Vacio) returns (EstadisticasInterpretacionReply);
 }
 
 message InterpretarRequest {
@@ -46,4 +48,24 @@ message AvisoReply {
 
 message EstadoReply {
   string motor = 1;
+}
+
+message UsoMotor {
+  string motor = 1;
+  int32 interpretaciones = 2;
+  int64 duracion_promedio_ms = 3;
+}
+
+message FalloIa {
+  string fecha = 1;  // ISO-8601 en UTC
+  string causa = 2;
+}
+
+message EstadisticasInterpretacionReply {
+  int32 total = 1;
+  int64 duracion_promedio_ms = 2;
+  int32 guardrails_activados = 3;
+  int32 respaldo = 4;  // veces que la IA falló y respondió el motor por reglas
+  repeated UsoMotor motores = 5;
+  repeated FalloIa fallos_recientes = 6;
 }

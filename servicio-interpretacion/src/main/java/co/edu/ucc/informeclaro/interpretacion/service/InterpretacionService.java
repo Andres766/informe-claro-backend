@@ -1,5 +1,6 @@
 package co.edu.ucc.informeclaro.interpretacion.service;
 
+import co.edu.ucc.informeclaro.interpretacion.dto.EstadisticasInterpretacionDto;
 import co.edu.ucc.informeclaro.interpretacion.dto.InterpretacionDto;
 import co.edu.ucc.informeclaro.interpretacion.externo.LlmNoDisponibleException;
 import co.edu.ucc.informeclaro.interpretacion.model.RegistroInterpretacion;
@@ -8,7 +9,9 @@ import io.grpc.StatusRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.Map;
 
 /**
@@ -65,6 +68,21 @@ public class InterpretacionService {
 
     public String aviso(String idioma) {
         return AVISOS.getOrDefault(idioma, AVISOS.get("es"));
+    }
+
+    /** Cifras de la bitácora: no incluye textos de informes, solo motores, tiempos y causas de fallo. */
+    @Transactional(readOnly = true)
+    public EstadisticasInterpretacionDto estadisticas() {
+        var motores = registros.usoPorMotor().stream()
+                .map(f -> new EstadisticasInterpretacionDto.UsoMotor((String) f[0], (Long) f[1],
+                        Math.round(((Number) f[2]).doubleValue())))
+                .sorted(Comparator.comparingLong(EstadisticasInterpretacionDto.UsoMotor::interpretaciones).reversed())
+                .toList();
+        var fallos = registros.findTop5ByCausaRespaldoIsNotNullOrderByIdDesc().stream()
+                .map(r -> new EstadisticasInterpretacionDto.Fallo(r.getFecha(), r.getCausaRespaldo()))
+                .toList();
+        return new EstadisticasInterpretacionDto(registros.count(), Math.round(registros.duracionPromedio()),
+                registros.guardrailsActivados(), registros.countByMotor(MOTOR_RESPALDO), motores, fallos);
     }
 
     public String motorActual() {
