@@ -6,6 +6,7 @@ import co.edu.ucc.informeclaro.interpretacion.dto.RangoDto;
 import co.edu.ucc.informeclaro.interpretacion.dto.ResultadoLlmDto;
 import co.edu.ucc.informeclaro.interpretacion.dto.ValorInterpretadoDto;
 import co.edu.ucc.informeclaro.interpretacion.externo.ClienteLlm;
+import co.edu.ucc.informeclaro.interpretacion.externo.RespuestaLlm;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -82,7 +83,8 @@ public class MotorLlmService {
         String mensaje = "<informe>\n" + texto + "\n</informe>\n\n"
                 + "Extrae y explica cada valor del informe y sugiere preguntas para el médico.\n"
                 + INSTRUCCION_IDIOMA.getOrDefault(idioma, INSTRUCCION_IDIOMA.get("es"));
-        ResultadoLlmDto datos = llm.interpretar(SYSTEM_PROMPT, mensaje);
+        RespuestaLlm respuesta = llm.interpretar(SYSTEM_PROMPT, mensaje);
+        ResultadoLlmDto datos = respuesta.resultado();
 
         List<ResultadoLlmDto.Valor> crudos = datos.valores() == null ? List.of() : datos.valores();
         List<String> estados = documentos.clasificar(crudos.stream()
@@ -102,7 +104,7 @@ public class MotorLlmService {
         List<String> preguntas = datos.preguntas() == null ? List.of()
                 : datos.preguntas().stream().filter(p -> !guardrails.cruzaLaLinea(p)).toList();
 
-        return new Resultado(new InterpretacionDto(resumen.texto(), valores, preguntas, llm.modelo()), activaciones);
+        return new Resultado(new InterpretacionDto(resumen.texto(), valores, preguntas, respuesta.modelo()), activaciones);
     }
 
     private static String nulo(String texto) {

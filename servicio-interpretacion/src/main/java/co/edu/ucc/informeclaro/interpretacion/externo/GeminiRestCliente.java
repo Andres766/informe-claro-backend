@@ -74,7 +74,7 @@ public class GeminiRestCliente implements ClienteLlm {
 
     /** Prueba el modelo principal y luego el de respaldo, reintentando solo los fallos pasajeros. */
     @Override
-    public ResultadoLlmDto interpretar(String instruccionSistema, String mensajeUsuario) {
+    public RespuestaLlm interpretar(String instruccionSistema, String mensajeUsuario) {
         List<String> modelos = new ArrayList<>(List.of(modelo));
         if (modeloRespaldo != null && !modeloRespaldo.isBlank() && !modeloRespaldo.equals(modelo)) {
             modelos.add(modeloRespaldo);
@@ -89,7 +89,7 @@ public class GeminiRestCliente implements ClienteLlm {
                     throw new LlmNoDisponibleException(String.join(" | ", historial), ultimo);
                 }
                 try {
-                    return llamarConPensamientoOpcional(m, instruccionSistema, mensajeUsuario, historial);
+                    return new RespuestaLlm(llamarConPensamientoOpcional(m, instruccionSistema, mensajeUsuario, historial), m);
                 } catch (FalloPorTiempoException e) {
                     ultimo = e;
                     historial.add(m + ": " + resumir(e));

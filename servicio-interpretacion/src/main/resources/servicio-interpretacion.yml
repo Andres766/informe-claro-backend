@@ -21,8 +21,8 @@ informeclaro:
   gemini:                                              # REST (API de terceros); se usa si tiene key
     url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com}
     api-key: ${GEMINI_API_KEY:}
-    modelo: ${GEMINI_MODEL:gemini-flash-latest}
-    modelo-respaldo: ${GEMINI_MODEL_RESPALDO:gemini-flash-lite-latest}   # si el principal está saturado
+    modelo: ${GEMINI_MODEL:gemini-flash-lite-latest}                  # rápido: responde en segundos
+    modelo-respaldo: ${GEMINI_MODEL_RESPALDO:gemini-flash-latest}     # si el principal está saturado o tarda
     pensamiento: ${GEMINI_PENSAMIENTO:0}         # thinkingBudget: 0 = responder sin "pensar" (más rápido); -1 = no enviarlo
     timeout-s: ${GEMINI_TIMEOUT_S:90}            # espera máxima por intento
     presupuesto-s: ${GEMINI_PRESUPUESTO_S:150}   # no se empiezan intentos nuevos después de este tiempo

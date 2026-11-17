@@ -49,7 +49,7 @@ public class AnthropicRestCliente implements ClienteLlm {
     /** POST /v1/messages con la instrucción de sistema y el informe; devuelve la salida estructurada. */
     @Override
     @SuppressWarnings("unchecked")
-    public ResultadoLlmDto interpretar(String instruccionSistema, String mensajeUsuario) {
+    public RespuestaLlm interpretar(String instruccionSistema, String mensajeUsuario) {
         Map<String, Object> cuerpo = Map.of(
                 "model", modelo,
                 "max_tokens", 16000,
@@ -85,7 +85,7 @@ public class AnthropicRestCliente implements ClienteLlm {
                 .findFirst()
                 .orElseThrow(() -> new LlmNoDisponibleException("Respuesta sin texto (stop_reason=" + razon + ")", null));
         try {
-            return json.readValue(texto, ResultadoLlmDto.class);
+            return new RespuestaLlm(json.readValue(texto, ResultadoLlmDto.class), modelo);
         } catch (RuntimeException e) {
             throw new LlmNoDisponibleException("La salida del modelo no tiene el formato esperado", e);
         }

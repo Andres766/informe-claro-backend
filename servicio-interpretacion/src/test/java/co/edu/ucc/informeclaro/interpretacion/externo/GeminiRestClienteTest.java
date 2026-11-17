@@ -91,7 +91,9 @@ class GeminiRestClienteTest {
         api.expect(requestTo(URL)).andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS));
         api.expect(requestTo(URL_RESPALDO)).andRespond(withSuccess(RESPUESTA_CORTA, MediaType.APPLICATION_JSON));
 
-        assertThat(cliente.interpretar("sistema", "usuario").resumen()).isEqualTo("Listo.");
+        RespuestaLlm respuesta = cliente.interpretar("sistema", "usuario");
+        assertThat(respuesta.resultado().resumen()).isEqualTo("Listo.");
+        assertThat(respuesta.modelo()).isEqualTo("gemini-flash-lite-latest"); // el motor es el que respondió
         api.verify();
     }
 
@@ -117,8 +119,8 @@ class GeminiRestClienteTest {
                 .andExpect(jsonPath("$.generationConfig.thinkingConfig").doesNotExist())
                 .andRespond(withSuccess(RESPUESTA_CORTA, MediaType.APPLICATION_JSON));
 
-        assertThat(cliente.interpretar("sistema", "usuario").resumen()).isEqualTo("Listo.");
-        assertThat(cliente.interpretar("sistema", "usuario").resumen()).isEqualTo("Listo.");
+        assertThat(cliente.interpretar("sistema", "usuario").resultado().resumen()).isEqualTo("Listo.");
+        assertThat(cliente.interpretar("sistema", "usuario").resultado().resumen()).isEqualTo("Listo.");
         api.verify();
     }
 
@@ -138,7 +140,7 @@ class GeminiRestClienteTest {
         api.expect(requestTo(URL)).andRespond(withException(new SocketTimeoutException("Read timed out")));
         api.expect(requestTo(URL_RESPALDO)).andRespond(withSuccess(RESPUESTA_CORTA, MediaType.APPLICATION_JSON));
 
-        assertThat(cliente.interpretar("sistema", "usuario").resumen()).isEqualTo("Listo.");
+        assertThat(cliente.interpretar("sistema", "usuario").resultado().resumen()).isEqualTo("Listo.");
         api.verify();
     }
 
