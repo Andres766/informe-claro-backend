@@ -52,7 +52,7 @@ services:
       SERVICIO: servicio-interpretacion
       DESTINO_DOCUMENTOS: servicio-documentos:9092
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-latest}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-lite-latest}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
 
   servicio-informes:
