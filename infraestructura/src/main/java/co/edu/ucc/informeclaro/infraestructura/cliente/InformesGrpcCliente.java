@@ -1,5 +1,7 @@
 package co.edu.ucc.informeclaro.infraestructura.cliente;
 
+import co.edu.ucc.informeclaro.grpc.comun.Vacio;
+import co.edu.ucc.informeclaro.grpc.informes.EstadisticasInformesReply;
 import co.edu.ucc.informeclaro.grpc.informes.GuardarInformeRequest;
 import co.edu.ucc.informeclaro.grpc.informes.InformeIdRequest;
 import co.edu.ucc.informeclaro.grpc.informes.InformeReply;
@@ -39,5 +41,9 @@ public class InformesGrpcCliente {
 
     public void eliminar(long id, long usuarioId) {
         conPlazo().eliminar(InformeIdRequest.newBuilder().setId(id).setUsuarioId(usuarioId).build());
+    }
+
+    public EstadisticasInformesReply estadisticas() {
+        return conPlazo().estadisticas(Vacio.getDefaultInstance());
     }
 }

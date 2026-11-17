@@ -24,6 +24,15 @@ public class AutenticacionService {
         return usuarios.validarToken(token); // UNAUTHENTICATED por gRPC si el token no es válido
     }
 
+    /** Como {@link #usuarioActual}, pero exige el rol de administrador (403 si no lo tiene). */
+    public UsuarioReply administradorActual(String autorizacion) {
+        UsuarioReply usuario = usuarioActual(autorizacion);
+        if (!"admin".equals(usuario.getRol())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "solo_admin");
+        }
+        return usuario;
+    }
+
     static String extraerToken(String autorizacion) {
         if (autorizacion == null) {
             return null;

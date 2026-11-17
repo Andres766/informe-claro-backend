@@ -52,6 +52,6 @@ public class AuthController {
     }
 
     private static UsuarioOut aUsuario(UsuarioReply u) {
-        return new UsuarioOut(u.getId(), u.getNombre(), u.getEmail());
+        return new UsuarioOut(u.getId(), u.getNombre(), u.getEmail(), u.getRol().isEmpty() ? "usuario" : u.getRol());
     }
 }

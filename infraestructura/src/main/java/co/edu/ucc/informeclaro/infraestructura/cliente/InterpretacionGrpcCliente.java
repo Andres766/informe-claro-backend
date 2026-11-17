@@ -2,6 +2,7 @@ package co.edu.ucc.informeclaro.infraestructura.cliente;
 
 import co.edu.ucc.informeclaro.grpc.comun.Vacio;
 import co.edu.ucc.informeclaro.grpc.interpretacion.AvisoRequest;
+import co.edu.ucc.informeclaro.grpc.interpretacion.EstadisticasInterpretacionReply;
 import co.edu.ucc.informeclaro.grpc.interpretacion.InterpretacionReply;
 import co.edu.ucc.informeclaro.grpc.interpretacion.InterpretacionServicioGrpc;
 import co.edu.ucc.informeclaro.grpc.interpretacion.InterpretarRequest;
@@ -28,6 +29,10 @@ public class InterpretacionGrpcCliente {
     public String aviso(String idioma) {
         return stub.withDeadlineAfter(10, TimeUnit.SECONDS)
                 .obtenerAviso(AvisoRequest.newBuilder().setIdioma(idioma).build()).getAviso();
+    }
+
+    public EstadisticasInterpretacionReply estadisticas() {
+        return stub.withDeadlineAfter(15, TimeUnit.SECONDS).estadisticas(Vacio.getDefaultInstance());
     }
 
     public String motor() {

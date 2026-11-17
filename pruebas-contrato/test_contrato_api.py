@@ -73,7 +73,7 @@ def test_registro_login_y_yo(api):
     cuerpo = r.json()
     assert set(cuerpo) == {"access_token", "token_type", "usuario"}
     assert cuerpo["token_type"] == "bearer"
-    assert cuerpo["usuario"] == {"id": cuerpo["usuario"]["id"], "nombre": "Ana María", "email": email}
+    assert cuerpo["usuario"] == {"id": cuerpo["usuario"]["id"], "nombre": "Ana María", "email": email, "rol": "usuario"}
 
     r = api.post("/api/auth/login", json={"email": email, "password": "clave-segura-1"})
     assert r.status_code == 200
@@ -87,6 +87,15 @@ def test_sin_sesion_no_hay_acceso(api):
     assert r.headers.get("www-authenticate") == "Bearer"
     r = api.get("/api/informes", headers={"Authorization": "Bearer token-falso", **EN})
     assert r.status_code == 401 and r.json() == {"detail": "Sign in to continue"}
+
+
+def test_el_panel_de_administracion_es_solo_para_administradores(api, sesion):
+    r = api.get("/api/admin/estadisticas")
+    assert r.status_code == 401
+    r = api.get("/api/admin/estadisticas", headers=sesion)
+    assert r.status_code == 403 and r.json() == {"detail": "Solo un administrador puede ver este panel."}
+    r = api.get("/api/admin/estadisticas", headers={**sesion, **EN})
+    assert r.json() == {"detail": "Only an administrator can see this panel."}
 
 
 def test_errores_de_registro_y_login(api):

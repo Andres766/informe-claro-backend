@@ -1,5 +1,6 @@
 package co.edu.ucc.informeclaro.infraestructura.cliente;
 
+import co.edu.ucc.informeclaro.grpc.comun.Vacio;
 import co.edu.ucc.informeclaro.grpc.usuarios.LoginRequest;
 import co.edu.ucc.informeclaro.grpc.usuarios.RegistroRequest;
 import co.edu.ucc.informeclaro.grpc.usuarios.SesionReply;
@@ -8,6 +9,7 @@ import co.edu.ucc.informeclaro.grpc.usuarios.UsuarioReply;
 import co.edu.ucc.informeclaro.grpc.usuarios.UsuariosServicioGrpc;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /** Cliente gRPC (HTTP/2) del microservicio de usuarios. */
@@ -34,5 +36,9 @@ public class UsuariosGrpcCliente {
 
     public UsuarioReply validarToken(String token) {
         return conPlazo().validarToken(TokenRequest.newBuilder().setToken(token).build());
+    }
+
+    public List<UsuarioReply> listar() {
+        return conPlazo().listarUsuarios(Vacio.getDefaultInstance()).getUsuariosList();
     }
 }

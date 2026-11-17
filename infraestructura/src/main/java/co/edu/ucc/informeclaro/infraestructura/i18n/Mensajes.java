@@ -16,6 +16,8 @@ public final class Mensajes {
                     "en", "No laboratory values were found in the PDF")),
             Map.entry("informe_no_encontrado", Map.of("es", "Informe no encontrado", "en", "Report not found")),
             Map.entry("inicia_sesion", Map.of("es", "Inicia sesión para continuar", "en", "Sign in to continue")),
+            Map.entry("solo_admin", Map.of("es", "Solo un administrador puede ver este panel.",
+                    "en", "Only an administrator can see this panel.")),
             Map.entry("correo_repetido", Map.of("es", "Ya existe una cuenta con ese correo",
                     "en", "An account with that email already exists")),
             Map.entry("credenciales", Map.of("es", "Correo o contraseña incorrectos", "en", "Incorrect email or password")),
