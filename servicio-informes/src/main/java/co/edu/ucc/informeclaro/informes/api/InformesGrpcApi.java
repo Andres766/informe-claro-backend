@@ -2,16 +2,22 @@ package co.edu.ucc.informeclaro.informes.api;
 
 import co.edu.ucc.informeclaro.comun.grpc.RespuestaGrpc;
 import co.edu.ucc.informeclaro.grpc.comun.Vacio;
+import co.edu.ucc.informeclaro.grpc.informes.ConteoPorIdioma;
+import co.edu.ucc.informeclaro.grpc.informes.ConteoPorMes;
+import co.edu.ucc.informeclaro.grpc.informes.EstadisticasInformesReply;
 import co.edu.ucc.informeclaro.grpc.informes.GuardarInformeRequest;
 import co.edu.ucc.informeclaro.grpc.informes.InformeIdRequest;
 import co.edu.ucc.informeclaro.grpc.informes.InformeReply;
 import co.edu.ucc.informeclaro.grpc.informes.InformeResumen;
+import co.edu.ucc.informeclaro.grpc.informes.InformesDeUsuario;
 import co.edu.ucc.informeclaro.grpc.informes.InformesServicioGrpc;
 import co.edu.ucc.informeclaro.grpc.informes.ListaInformesReply;
 import co.edu.ucc.informeclaro.grpc.informes.ListarRequest;
 import co.edu.ucc.informeclaro.grpc.informes.PreguntaInforme;
+import co.edu.ucc.informeclaro.grpc.informes.ValorFueraDeRango;
 import co.edu.ucc.informeclaro.grpc.informes.ValorInforme;
 import co.edu.ucc.informeclaro.informes.controller.InformeController;
+import co.edu.ucc.informeclaro.informes.dto.EstadisticasInformesDto;
 import co.edu.ucc.informeclaro.informes.dto.InformeDto;
 import co.edu.ucc.informeclaro.informes.dto.NuevoInformeDto;
 import co.edu.ucc.informeclaro.informes.dto.ValorDto;
@@ -58,6 +64,28 @@ public class InformesGrpcApi extends InformesServicioGrpc.InformesServicioImplBa
             controlador.eliminar(p.getId(), p.getUsuarioId());
             return Vacio.getDefaultInstance();
         });
+    }
+
+    @Override
+    public void estadisticas(Vacio p, StreamObserver<EstadisticasInformesReply> respuesta) {
+        RespuestaGrpc.responder(respuesta, () -> aReply(controlador.estadisticas()));
+    }
+
+    private static EstadisticasInformesReply aReply(EstadisticasInformesDto e) {
+        return EstadisticasInformesReply.newBuilder()
+                .setTotalInformes((int) e.totalInformes()).setTotalValores((int) e.totalValores())
+                .setFueraDeRango((int) e.fueraDeRango())
+                .addAllPorUsuario(e.porUsuario().stream().map(u -> InformesDeUsuario.newBuilder()
+                        .setUsuarioId(u.usuarioId()).setInformes((int) u.informes())
+                        .setUltimoInforme(u.ultimoInforme().toString()).build()).toList())
+                .addAllPorMes(e.porMes().stream().map(m -> ConteoPorMes.newBuilder()
+                        .setMes(m.mes()).setInformes((int) m.informes()).build()).toList())
+                .addAllPorIdioma(e.porIdioma().stream().map(i -> ConteoPorIdioma.newBuilder()
+                        .setIdioma(i.idioma()).setInformes((int) i.informes()).build()).toList())
+                .addAllValoresFueraDeRango(e.valoresFueraDeRango().stream().map(v -> ValorFueraDeRango.newBuilder()
+                        .setNombreValor(v.nombreValor()).setFueraDeRango((int) v.fueraDeRango()).setTotal((int) v.total())
+                        .build()).toList())
+                .build();
     }
 
     private static InformeReply aReply(InformeDto i) {

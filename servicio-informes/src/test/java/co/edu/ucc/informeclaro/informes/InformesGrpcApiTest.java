@@ -2,6 +2,10 @@ package co.edu.ucc.informeclaro.informes;
 
 import co.edu.ucc.informeclaro.comun.grpc.CanalesGrpc;
 import co.edu.ucc.informeclaro.comun.grpc.ServidorGrpc;
+import co.edu.ucc.informeclaro.grpc.comun.Vacio;
+import co.edu.ucc.informeclaro.grpc.informes.EstadisticasInformesReply;
+import co.edu.ucc.informeclaro.grpc.informes.InformesDeUsuario;
+import co.edu.ucc.informeclaro.grpc.informes.ValorFueraDeRango;
 import co.edu.ucc.informeclaro.grpc.informes.GuardarInformeRequest;
 import co.edu.ucc.informeclaro.grpc.informes.InformeIdRequest;
 import co.edu.ucc.informeclaro.grpc.informes.InformeReply;
@@ -19,6 +23,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.Instant;
+import java.time.YearMonth;
+import java.time.ZoneId;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -82,6 +88,25 @@ class InformesGrpcApiTest {
         StatusRuntimeException borrado = catchThrowableOfType(StatusRuntimeException.class, () -> cliente().obtener(
                 InformeIdRequest.newBuilder().setId(informe.getId()).setUsuarioId(101).build()));
         assertThat(borrado.getStatus().getCode()).isEqualTo(Status.Code.NOT_FOUND);
+    }
+
+    @Test
+    void lasEstadisticasSonCifrasAgregadasSinContenido() {
+        guardar(505, "uno.pdf");
+        guardar(505, "dos.pdf");
+        guardar(606, "tres.pdf");
+
+        EstadisticasInformesReply e = cliente().estadisticas(Vacio.getDefaultInstance());
+        assertThat(e.getTotalInformes()).isGreaterThanOrEqualTo(3);
+        assertThat(e.getTotalValores()).isEqualTo(e.getTotalInformes() * 2);  // cada informe de prueba trae 2 valores
+        assertThat(e.getFueraDeRango()).isEqualTo(e.getTotalInformes());     // y uno de ellos está fuera de rango
+        assertThat(e.getPorUsuarioList()).filteredOn(u -> u.getUsuarioId() == 505)
+                .singleElement().extracting(InformesDeUsuario::getInformes).isEqualTo(2);
+        assertThat(e.getPorMesList()).last().satisfies(m ->
+                assertThat(m.getMes()).isEqualTo(YearMonth.now(ZoneId.of("America/Bogota")).toString()));
+        assertThat(e.getPorIdiomaList()).singleElement().satisfies(i -> assertThat(i.getIdioma()).isEqualTo("en"));
+        // Solo aparecen los valores que alguna vez salieron fuera de rango.
+        assertThat(e.getValoresFueraDeRangoList()).extracting(ValorFueraDeRango::getNombreValor).containsExactly("Glucosa");
     }
 
     @Test

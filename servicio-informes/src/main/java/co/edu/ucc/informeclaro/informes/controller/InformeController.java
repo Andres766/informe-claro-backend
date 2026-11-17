@@ -1,5 +1,6 @@
 package co.edu.ucc.informeclaro.informes.controller;
 
+import co.edu.ucc.informeclaro.informes.dto.EstadisticasInformesDto;
 import co.edu.ucc.informeclaro.informes.dto.InformeDto;
 import co.edu.ucc.informeclaro.informes.dto.InformeResumenDto;
 import co.edu.ucc.informeclaro.informes.dto.NuevoInformeDto;
@@ -32,5 +33,9 @@ public class InformeController {
 
     public void eliminar(long id, long usuarioId) {
         servicio.eliminar(id, usuarioId);
+    }
+
+    public EstadisticasInformesDto estadisticas() {
+        return servicio.estadisticas();
     }
 }
