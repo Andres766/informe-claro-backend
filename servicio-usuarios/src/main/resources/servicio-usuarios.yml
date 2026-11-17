@@ -20,6 +20,7 @@ informeclaro:
     usuario: ${DB_USUARIO:informeclaro}
     clave: ${DB_CLAVE:informeclaro}
     pool: ${DB_POOL:3}
+  admins: ${ADMIN_EMAILS:}    # correos separados por comas que reciben el rol de administrador
   jwt:
     secreto: ${JWT_SECRET:}
     horas: ${JWT_HORAS:8}

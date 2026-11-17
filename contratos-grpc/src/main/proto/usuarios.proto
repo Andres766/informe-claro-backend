@@ -5,6 +5,8 @@ syntax = "proto3";
 
 package informeclaro.usuarios;
 
+import "comun.proto";
+
 option java_multiple_files = true;
 option java_package = "co.edu.ucc.informeclaro.grpc.usuarios";
 
@@ -12,6 +14,8 @@ service UsuariosServicio {
   rpc Registrar (RegistroRequest) returns (SesionReply);
   rpc IniciarSesion (LoginRequest) returns (SesionReply);
   rpc ValidarToken (TokenRequest) returns (UsuarioReply);
+  // Cuentas registradas, para el panel de administración (sin contraseñas).
+  rpc ListarUsuarios (informeclaro.comun.Vacio) returns (ListaUsuariosReply);
 }
 
 message RegistroRequest {
@@ -33,6 +37,11 @@ message UsuarioReply {
   int64 id = 1;
   string nombre = 2;
   string email = 3;
+  string rol = 4;  // "usuario" o "admin"
+}
+
+message ListaUsuariosReply {
+  repeated UsuarioReply usuarios = 1;
 }
 
 message SesionReply {

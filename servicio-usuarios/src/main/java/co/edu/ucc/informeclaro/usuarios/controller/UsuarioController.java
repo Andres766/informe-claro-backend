@@ -8,6 +8,8 @@ import co.edu.ucc.informeclaro.usuarios.model.Usuario;
 import co.edu.ucc.informeclaro.usuarios.service.UsuarioService;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 /**
  * Controlador interno del microservicio: recibe DTOs, invoca los servicios y devuelve DTOs.
  * No sabe nada de gRPC; eso lo resuelve {@code api/UsuariosGrpcApi}.
@@ -35,7 +37,11 @@ public class UsuarioController {
         return aDto(servicio.desdeToken(token));
     }
 
+    public List<UsuarioDto> listar() {
+        return servicio.listar().stream().map(UsuarioController::aDto).toList();
+    }
+
     private static UsuarioDto aDto(Usuario u) {
-        return new UsuarioDto(u.getId(), u.getNombre(), u.getEmail());
+        return new UsuarioDto(u.getId(), u.getNombre(), u.getEmail(), u.getRol());
     }
 }

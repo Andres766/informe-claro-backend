@@ -2,6 +2,8 @@ package co.edu.ucc.informeclaro.usuarios;
 
 import co.edu.ucc.informeclaro.comun.grpc.CanalesGrpc;
 import co.edu.ucc.informeclaro.comun.grpc.ServidorGrpc;
+import co.edu.ucc.informeclaro.grpc.comun.Vacio;
+import co.edu.ucc.informeclaro.grpc.usuarios.UsuarioReply;
 import co.edu.ucc.informeclaro.grpc.usuarios.LoginRequest;
 import co.edu.ucc.informeclaro.grpc.usuarios.RegistroRequest;
 import co.edu.ucc.informeclaro.grpc.usuarios.SesionReply;
@@ -87,6 +89,28 @@ class UsuariosGrpcApiTest {
                 LoginRequest.newBuilder().setEmail("nadie@prueba.co").setPassword("equivocada").build()));
         assertThat(mala.getStatus().getCode()).isEqualTo(Status.Code.UNAUTHENTICATED);
         assertThat(mala.getStatus().getDescription()).isEqualTo(noExiste.getStatus().getDescription()).isEqualTo("credenciales");
+    }
+
+    @Test
+    void losCorreosDeAdminEmailsSonAdministradoresYLosDemasUsuarios() {
+        SesionReply jefe = cliente().registrar(RegistroRequest.newBuilder()
+                .setNombre("Jefa").setEmail("jefe@prueba.co").setPassword("clave-segura-1").build());
+        SesionReply paciente = cliente().registrar(RegistroRequest.newBuilder()
+                .setNombre("Paciente").setEmail("paciente.rol@prueba.co").setPassword("clave-segura-1").build());
+        assertThat(jefe.getUsuario().getRol()).isEqualTo("admin");
+        assertThat(paciente.getUsuario().getRol()).isEqualTo("usuario");
+        assertThat(cliente().validarToken(TokenRequest.newBuilder().setToken(jefe.getAccessToken()).build()).getRol())
+                .isEqualTo("admin");
+
+        // Una cuenta que ya existía se vuelve admin al iniciar sesión si su correo está en la lista.
+        repositorio.save(new Usuario("Otra", "otra@prueba.co", HASH_PYTHON));
+        assertThat(cliente().iniciarSesion(LoginRequest.newBuilder()
+                .setEmail("otra@prueba.co").setPassword("clave-segura-1").build()).getUsuario().getRol()).isEqualTo("admin");
+
+        assertThat(cliente().listarUsuarios(Vacio.getDefaultInstance()).getUsuariosList())
+                .extracting(UsuarioReply::getEmail, UsuarioReply::getRol)
+                .contains(org.assertj.core.groups.Tuple.tuple("jefe@prueba.co", "admin"),
+                        org.assertj.core.groups.Tuple.tuple("paciente.rol@prueba.co", "usuario"));
     }
 
     @Test

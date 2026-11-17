@@ -1,6 +1,8 @@
 package co.edu.ucc.informeclaro.usuarios.api;
 
 import co.edu.ucc.informeclaro.comun.grpc.RespuestaGrpc;
+import co.edu.ucc.informeclaro.grpc.comun.Vacio;
+import co.edu.ucc.informeclaro.grpc.usuarios.ListaUsuariosReply;
 import co.edu.ucc.informeclaro.grpc.usuarios.LoginRequest;
 import co.edu.ucc.informeclaro.grpc.usuarios.RegistroRequest;
 import co.edu.ucc.informeclaro.grpc.usuarios.SesionReply;
@@ -45,11 +47,17 @@ public class UsuariosGrpcApi extends UsuariosServicioGrpc.UsuariosServicioImplBa
         RespuestaGrpc.responder(respuesta, () -> aUsuario(controlador.usuarioDelToken(peticion.getToken())));
     }
 
+    @Override
+    public void listarUsuarios(Vacio peticion, StreamObserver<ListaUsuariosReply> respuesta) {
+        RespuestaGrpc.responder(respuesta, () -> ListaUsuariosReply.newBuilder()
+                .addAllUsuarios(controlador.listar().stream().map(UsuariosGrpcApi::aUsuario).toList()).build());
+    }
+
     private static SesionReply aSesion(SesionDto sesion) {
         return SesionReply.newBuilder().setAccessToken(sesion.token()).setUsuario(aUsuario(sesion.usuario())).build();
     }
 
     private static UsuarioReply aUsuario(UsuarioDto u) {
-        return UsuarioReply.newBuilder().setId(u.id()).setNombre(u.nombre()).setEmail(u.email()).build();
+        return UsuarioReply.newBuilder().setId(u.id()).setNombre(u.nombre()).setEmail(u.email()).setRol(u.rol()).build();
     }
 }

@@ -7,10 +7,16 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
-/** Cuenta de un paciente. Nunca se guarda la contraseña: solo su hash bcrypt. */
+/**
+ * Cuenta de un paciente (rol "usuario") o de un administrador (rol "admin"). Nunca se guarda la
+ * contraseña: solo su hash bcrypt.
+ */
 @Entity
 @Table(name = "usuario")
 public class Usuario {
+
+    public static final String ROL_USUARIO = "usuario";
+    public static final String ROL_ADMIN = "admin";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -25,6 +31,10 @@ public class Usuario {
     @Column(name = "password_hash", length = 100)
     private String passwordHash;
 
+    // Nulo en las cuentas creadas antes de existir los roles: se leen como "usuario".
+    @Column(length = 20)
+    private String rol;
+
     protected Usuario() {
     }
 
@@ -32,6 +42,7 @@ public class Usuario {
         this.nombre = nombre;
         this.email = email;
         this.passwordHash = passwordHash;
+        this.rol = ROL_USUARIO;
     }
 
     public Long getId() {
@@ -48,5 +59,17 @@ public class Usuario {
 
     public String getPasswordHash() {
         return passwordHash;
+    }
+
+    public String getRol() {
+        return rol == null ? ROL_USUARIO : rol;
+    }
+
+    public boolean esAdmin() {
+        return ROL_ADMIN.equals(rol);
+    }
+
+    public void hacerAdmin() {
+        this.rol = ROL_ADMIN;
     }
 }
