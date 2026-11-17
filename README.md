@@ -51,7 +51,7 @@ Proyecto final individual — Programación Orientada a la Web, Ingeniería de S
 |---|---|---|
 | `contratos-grpc` | Contratos `.proto` compartidos y código gRPC generado | — |
 | `comun` | Servidor gRPC reutilizable, canales HTTP/2, errores entre servicios, conexión a la base | — |
-| `servicio-usuarios` | Registro, inicio de sesión, contraseñas bcrypt, tokens JWT | `usuario` |
+| `servicio-usuarios` | Registro, inicio de sesión, contraseñas bcrypt, tokens JWT, roles (`usuario` / `admin`) | `usuario` |
 | `servicio-documentos` | Lee el PDF **en memoria** (nunca lo guarda), oculta datos personales, extrae y clasifica valores | `registro_procesamiento` (bitácora sin contenido) |
 | `servicio-interpretacion` | Explica cada valor (Gemini/Claude por REST o motor por reglas), guardrails clínicos, preguntas, aviso médico | `registro_interpretacion` (bitácora) |
 | `servicio-informes` | Historial de cada usuario (valores, explicación y preguntas) | `informe_cargado`, `valor_examen`, `pregunta_sugerida` |
@@ -126,7 +126,7 @@ Cada módulo lee su propia configuración (`servicio-usuarios.yml`, `infraestruc
 
 ### Pruebas
 
-- `./mvnw test` — 82 pruebas: cada microservicio se prueba a través de su **API gRPC real** (HTTP/2) con
+- `./mvnw test` — 87 pruebas: cada microservicio se prueba a través de su **API gRPC real** (HTTP/2) con
   una base H2; los clientes REST de Gemini y Anthropic se prueban sin salir a internet.
 - `pytest pruebas-contrato` — pruebas de **contrato** contra el sistema en marcha: verifican que la API REST
   que usa el frontend responde igual que la versión monolítica (rutas, códigos, JSON y mensajes).
@@ -146,8 +146,25 @@ Cada módulo lee su propia configuración (`servicio-usuarios.yml`, `infraestruc
 | `GET` | `/api/informes` | Historial del usuario |
 | `GET` | `/api/informes/{id}` | Detalle de un informe |
 | `DELETE` | `/api/informes/{id}` | Elimina un informe |
+| `GET` | `/api/admin/estadisticas` | Panel de administración (solo rol `admin`; 403 para los demás) |
 
 Los mensajes de error salen en el idioma del encabezado `Accept-Language` (español por defecto).
+
+## Roles y panel de administración
+
+Hay dos roles: **usuario** (paciente) y **admin**. Un admin usa la app igual que cualquier paciente y,
+además, ve el panel de administración en el frontend:
+
+- cuentas registradas y cuántos informes tiene cada una;
+- totales, informes por mes e idioma, y los valores que más salen fuera de rango;
+- qué motor explicó cada informe (Gemini o el respaldo por reglas), sus tiempos y los últimos fallos de la IA.
+
+El panel muestra **solo cuentas y cifras agregadas: nunca el contenido de los informes de un paciente**.
+Cada microservicio entrega sus propias cifras por gRPC (`ListarUsuarios`, `Estadisticas`) y el orquestador
+las une; ningún servicio lee las tablas de otro.
+
+Para dar el rol de administrador se usa la variable `ADMIN_EMAILS` (correos separados por comas): esas
+cuentas quedan como admin al registrarse o al iniciar sesión. El rol queda guardado en la tabla `usuario`.
 
 ## Despliegue (Render)
 
@@ -156,7 +173,7 @@ contenedor usa el `lanzador-demo` (los 5 módulos en una JVM, ~200 MB): los micr
 comunicando por gRPC/HTTP/2 en `127.0.0.1` y solo el orquestador expone `$PORT`. Con más memoria se
 puede desplegar cada servicio por separado con la misma imagen y la variable `SERVICIO=<nombre>`.
 
-Variables: `DATABASE_URL` (la URL de Postgres de Render, Neon o Supabase), `JWT_SECRET`, `CORS_ORIGINS`
+Variables: `DATABASE_URL` (la URL de Postgres de Render, Neon o Supabase), `JWT_SECRET`, `ADMIN_EMAILS`, `CORS_ORIGINS`
 (URL del frontend), `GEMINI_API_KEY` (IA real; opcional, sin ella modo demo), `GEMINI_MODEL`, `GEMINI_MODEL_RESPALDO`, `GEMINI_TIMEOUT_S`, `GEMINI_PRESUPUESTO_S` y `GEMINI_PENSAMIENTO` (opcionales),
 `ANTHROPIC_API_KEY` (alternativa a Gemini), `IDIOMA_POR_DEFECTO` (opcional).
 Health check: `/api/salud`.

@@ -38,6 +38,7 @@ services:
       <<: *entorno-base
       SERVICIO: servicio-usuarios
       JWT_SECRET: ${JWT_SECRET:-cambia-esta-clave-local-de-al-menos-32-bytes}
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
 
   servicio-documentos:
     <<: *servicio
