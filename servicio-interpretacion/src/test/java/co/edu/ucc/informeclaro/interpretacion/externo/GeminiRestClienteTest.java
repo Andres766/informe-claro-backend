@@ -13,6 +13,8 @@ import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.net.SocketTimeoutException;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
@@ -20,6 +22,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withException;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
@@ -33,14 +36,15 @@ class GeminiRestClienteTest {
               {"text":"{\\"resumen\\":\\"Listo.\\",\\"valores\\":[],\\"preguntas\\":[]}"}]}}]}""";
 
     private MockRestServiceServer api;
+    private RestClient http;
     private GeminiRestCliente cliente;
 
     @BeforeEach
     void preparar() {
         RestClient.Builder constructor = RestClient.builder().baseUrl("https://generativelanguage.googleapis.com");
         api = MockRestServiceServer.bindTo(constructor).build();
-        cliente = new GeminiRestCliente(constructor.build(), JsonMapper.builder().build(), "clave-de-prueba",
-                "gemini-flash-latest", "gemini-flash-lite-latest", 0);
+        http = constructor.build();
+        cliente = clienteCon(0, 150);
     }
 
     @Test
@@ -52,6 +56,7 @@ class GeminiRestClienteTest {
                 .andExpect(jsonPath("$.generationConfig.responseMimeType").value("application/json"))
                 .andExpect(jsonPath("$.generationConfig.responseJsonSchema.required[0]").value("resumen"))
                 .andExpect(jsonPath("$.generationConfig.responseJsonSchema.additionalProperties").doesNotExist())
+                .andExpect(jsonPath("$.generationConfig.thinkingConfig.thinkingBudget").value(0))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("plain English")))
                 .andRespond(withSuccess("""
                         {"candidates":[{"finishReason":"STOP","content":{"role":"model","parts":[
@@ -101,10 +106,54 @@ class GeminiRestClienteTest {
     }
 
     @Test
+    void siElModeloRechazaThinkingConfigRepiteSinElYNoLoVuelveAEnviar() {
+        api.expect(requestTo(URL))
+                .andExpect(jsonPath("$.generationConfig.thinkingConfig.thinkingBudget").value(0))
+                .andRespond(withStatus(HttpStatus.BAD_REQUEST));
+        api.expect(requestTo(URL))
+                .andExpect(jsonPath("$.generationConfig.thinkingConfig").doesNotExist())
+                .andRespond(withSuccess(RESPUESTA_CORTA, MediaType.APPLICATION_JSON));
+        api.expect(requestTo(URL))
+                .andExpect(jsonPath("$.generationConfig.thinkingConfig").doesNotExist())
+                .andRespond(withSuccess(RESPUESTA_CORTA, MediaType.APPLICATION_JSON));
+
+        assertThat(cliente.interpretar("sistema", "usuario").resumen()).isEqualTo("Listo.");
+        assertThat(cliente.interpretar("sistema", "usuario").resumen()).isEqualTo("Listo.");
+        api.verify();
+    }
+
+    @Test
     void unaPeticionInvalidaNoSeReintenta() {
-        api.expect(requestTo(URL)).andRespond(withStatus(HttpStatus.BAD_REQUEST));
-        assertThatThrownBy(() -> cliente.interpretar("sistema", "usuario"))
+        GeminiRestCliente sinPensamiento = clienteCon(-1, 150);
+        api.expect(requestTo(URL))
+                .andExpect(jsonPath("$.generationConfig.thinkingConfig").doesNotExist())
+                .andRespond(withStatus(HttpStatus.BAD_REQUEST));
+        assertThatThrownBy(() -> sinPensamiento.interpretar("sistema", "usuario"))
                 .isInstanceOf(LlmNoDisponibleException.class);
         api.verify();
+    }
+
+    @Test
+    void siElModeloTardaDemasiadoPasaAlDeRespaldo() {
+        api.expect(requestTo(URL)).andRespond(withException(new SocketTimeoutException("Read timed out")));
+        api.expect(requestTo(URL_RESPALDO)).andRespond(withSuccess(RESPUESTA_CORTA, MediaType.APPLICATION_JSON));
+
+        assertThat(cliente.interpretar("sistema", "usuario").resumen()).isEqualTo("Listo.");
+        api.verify();
+    }
+
+    @Test
+    void sinTiempoRestanteNoEmpiezaIntentosNuevos() {
+        GeminiRestCliente apurado = clienteCon(0, 0);
+        api.expect(requestTo(URL)).andRespond(withStatus(HttpStatus.SERVICE_UNAVAILABLE));
+        assertThatThrownBy(() -> apurado.interpretar("sistema", "usuario"))
+                .isInstanceOf(LlmNoDisponibleException.class)
+                .hasMessageContaining("Se agotó el tiempo");
+        api.verify();
+    }
+
+    private GeminiRestCliente clienteCon(int pensamiento, long presupuestoS) {
+        return new GeminiRestCliente(http, JsonMapper.builder().build(), "clave-de-prueba",
+                "gemini-flash-latest", "gemini-flash-lite-latest", 0, presupuestoS, pensamiento);
     }
 }

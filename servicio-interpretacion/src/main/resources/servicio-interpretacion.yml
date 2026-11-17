@@ -23,6 +23,9 @@ informeclaro:
     api-key: ${GEMINI_API_KEY:}
     modelo: ${GEMINI_MODEL:gemini-flash-latest}
     modelo-respaldo: ${GEMINI_MODEL_RESPALDO:gemini-flash-lite-latest}   # si el principal está saturado
+    pensamiento: ${GEMINI_PENSAMIENTO:0}         # thinkingBudget: 0 = responder sin "pensar" (más rápido); -1 = no enviarlo
+    timeout-s: ${GEMINI_TIMEOUT_S:90}            # espera máxima por intento
+    presupuesto-s: ${GEMINI_PRESUPUESTO_S:150}   # no se empiezan intentos nuevos después de este tiempo
   anthropic:                                           # REST (API de terceros); alternativa a Gemini
     url: ${ANTHROPIC_BASE_URL:https://api.anthropic.com}
     api-key: ${ANTHROPIC_API_KEY:}

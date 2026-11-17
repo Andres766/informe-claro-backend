@@ -37,15 +37,16 @@ public class ConfiguracionClientes {
     /** REST: cliente HTTP para la API de Gemini (Google), un servicio de terceros. */
     @Bean
     public RestClient restClientGemini(RestClient.Builder constructor,
-                                       @Value("${informeclaro.gemini.url}") String url) {
-        return clienteRest(constructor, url);
+                                       @Value("${informeclaro.gemini.url}") String url,
+                                       @Value("${informeclaro.gemini.timeout-s:90}") long timeoutS) {
+        return clienteRest(constructor, url, Duration.ofSeconds(timeoutS)); // si tarda más, se prueba el modelo de respaldo
     }
 
     /** REST: cliente HTTP para la API de Anthropic (Claude), un servicio de terceros. */
     @Bean
     public RestClient restClientAnthropic(RestClient.Builder constructor,
                                           @Value("${informeclaro.anthropic.url}") String url) {
-        return clienteRest(constructor, url);
+        return clienteRest(constructor, url, Duration.ofMinutes(5)); // un informe largo puede tardar en explicarse
     }
 
     /** Proveedor de IA activo: Gemini si tiene API key; si no, Claude (sin ninguna, modo demo por reglas). */
@@ -55,10 +56,10 @@ public class ConfiguracionClientes {
         return gemini.configurado() ? gemini : anthropic;
     }
 
-    private static RestClient clienteRest(RestClient.Builder constructor, String url) {
+    private static RestClient clienteRest(RestClient.Builder constructor, String url, Duration lectura) {
         var fabrica = ClientHttpRequestFactoryBuilder.jdk().build(HttpClientSettings.defaults()
                 .withConnectTimeout(Duration.ofSeconds(15))
-                .withReadTimeout(Duration.ofMinutes(5))); // un informe largo puede tardar en explicarse
+                .withReadTimeout(lectura));
         return constructor.baseUrl(url).requestFactory(fabrica).build();
     }
 }

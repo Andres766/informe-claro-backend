@@ -9,18 +9,23 @@ import org.slf4j.LoggerFactory;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientException;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Cliente REST de la API de Gemini (Google): una API de TERCEROS, por eso se usa REST y no gRPC.
  * Pide la respuesta en JSON validado contra un esquema para recibir siempre el mismo formato.
  * Si Google responde saturado (503) o sin cuota por minuto (429), reintenta y luego prueba el
- * modelo de respaldo antes de rendirse (entonces el sistema usa el motor por reglas).
+ * modelo de respaldo antes de rendirse (entonces el sistema usa el motor por reglas). Si un modelo
+ * tarda demasiado, pasa al de respaldo; todo dentro de un presupuesto de tiempo para no dejar al
+ * paciente esperando.
  */
 @Component
 public class GeminiRestCliente implements ClienteLlm {
@@ -34,18 +39,27 @@ public class GeminiRestCliente implements ClienteLlm {
     private final String modelo;
     private final String modeloRespaldo;
     private final long esperaMs;
+    private final long presupuestoMs;
+    private final int presupuestoPensamiento;
+    // Se apaga si la API rechaza thinkingConfig para el modelo configurado.
+    private final AtomicBoolean enviarPensamiento;
 
     public GeminiRestCliente(RestClient restClientGemini, JsonMapper json,
                              @Value("${informeclaro.gemini.api-key:}") String apiKey,
                              @Value("${informeclaro.gemini.modelo}") String modelo,
                              @Value("${informeclaro.gemini.modelo-respaldo:}") String modeloRespaldo,
-                             @Value("${informeclaro.gemini.espera-reintento-ms:3000}") long esperaMs) {
+                             @Value("${informeclaro.gemini.espera-reintento-ms:3000}") long esperaMs,
+                             @Value("${informeclaro.gemini.presupuesto-s:150}") long presupuestoS,
+                             @Value("${informeclaro.gemini.pensamiento:0}") int presupuestoPensamiento) {
         this.http = restClientGemini;
         this.json = json;
         this.apiKey = apiKey;
         this.modelo = modelo;
         this.modeloRespaldo = modeloRespaldo;
         this.esperaMs = esperaMs;
+        this.presupuestoMs = presupuestoS * 1000;
+        this.presupuestoPensamiento = presupuestoPensamiento;
+        this.enviarPensamiento = new AtomicBoolean(presupuestoPensamiento >= 0);
     }
 
     @Override
@@ -65,11 +79,19 @@ public class GeminiRestCliente implements ClienteLlm {
         if (modeloRespaldo != null && !modeloRespaldo.isBlank() && !modeloRespaldo.equals(modelo)) {
             modelos.add(modeloRespaldo);
         }
+        long limite = System.currentTimeMillis() + presupuestoMs;
         LlmNoDisponibleException ultimo = null;
         for (String m : modelos) {
             for (int intento = 1; intento <= INTENTOS_POR_MODELO; intento++) {
+                if (ultimo != null && System.currentTimeMillis() >= limite) {
+                    throw new LlmNoDisponibleException("Se agotó el tiempo para Gemini: " + ultimo.getMessage(), ultimo);
+                }
                 try {
-                    return llamar(m, instruccionSistema, mensajeUsuario);
+                    return llamarConPensamientoOpcional(m, instruccionSistema, mensajeUsuario);
+                } catch (FalloPorTiempoException e) {
+                    ultimo = e;
+                    log.warn("Gemini {} tardó demasiado, se prueba el siguiente modelo", m);
+                    break;
                 } catch (FalloPasajeroException e) {
                     ultimo = e;
                     log.warn("Gemini {} no disponible (intento {} de {}): {}", m, intento, INTENTOS_POR_MODELO, e.getMessage());
@@ -80,15 +102,34 @@ public class GeminiRestCliente implements ClienteLlm {
         throw ultimo;
     }
 
+    /** Pide no "pensar" (más rápido; explicar valores no lo necesita). Si el modelo no lo acepta, repite sin ese ajuste. */
+    private ResultadoLlmDto llamarConPensamientoOpcional(String modelo, String instruccionSistema, String mensajeUsuario) {
+        boolean conPensamiento = enviarPensamiento.get();
+        try {
+            return llamar(modelo, instruccionSistema, mensajeUsuario, conPensamiento);
+        } catch (PeticionRechazadaException e) {
+            if (!conPensamiento) {
+                throw e;
+            }
+            enviarPensamiento.set(false);
+            log.warn("Gemini {} rechazó thinkingConfig; se continúa sin él: {}", modelo, e.getMessage());
+            return llamar(modelo, instruccionSistema, mensajeUsuario, false);
+        }
+    }
+
     /** POST /v1beta/models/{modelo}:generateContent con la instrucción de sistema y el informe. */
     @SuppressWarnings("unchecked")
-    private ResultadoLlmDto llamar(String modelo, String instruccionSistema, String mensajeUsuario) {
+    private ResultadoLlmDto llamar(String modelo, String instruccionSistema, String mensajeUsuario, boolean conPensamiento) {
+        Map<String, Object> configuracion = new HashMap<>(Map.of(
+                "responseMimeType", "application/json",
+                "responseJsonSchema", EsquemaSalida.json(false)));
+        if (conPensamiento) {
+            configuracion.put("thinkingConfig", Map.of("thinkingBudget", presupuestoPensamiento));
+        }
         Map<String, Object> cuerpo = Map.of(
                 "systemInstruction", Map.of("parts", List.of(Map.of("text", instruccionSistema))),
                 "contents", List.of(Map.of("role", "user", "parts", List.of(Map.of("text", mensajeUsuario)))),
-                "generationConfig", Map.of(
-                        "responseMimeType", "application/json",
-                        "responseJsonSchema", EsquemaSalida.json(false)));
+                "generationConfig", configuracion);
         Map<String, Object> respuesta;
         try {
             respuesta = http.post()
@@ -100,6 +141,10 @@ public class GeminiRestCliente implements ClienteLlm {
                     .body(Map.class);
         } catch (HttpServerErrorException | HttpClientErrorException.TooManyRequests e) {
             throw new FalloPasajeroException("Fallo al llamar a la API de Gemini: " + e.getMessage(), e);
+        } catch (HttpClientErrorException.BadRequest e) {
+            throw new PeticionRechazadaException("Gemini rechazó la petición: " + e.getMessage(), e);
+        } catch (ResourceAccessException e) {
+            throw new FalloPorTiempoException("Sin respuesta de Gemini a tiempo: " + e.getMessage(), e);
         } catch (RestClientException e) {
             throw new LlmNoDisponibleException("Fallo al llamar a la API de Gemini: " + e.getMessage(), e);
         }
@@ -141,6 +186,20 @@ public class GeminiRestCliente implements ClienteLlm {
     /** Saturación o límite por minuto: vale la pena reintentar. */
     private static class FalloPasajeroException extends LlmNoDisponibleException {
         FalloPasajeroException(String mensaje, Throwable causa) {
+            super(mensaje, causa);
+        }
+    }
+
+    /** El modelo no respondió a tiempo (o se cortó la conexión): mejor probar el siguiente modelo. */
+    private static class FalloPorTiempoException extends LlmNoDisponibleException {
+        FalloPorTiempoException(String mensaje, Throwable causa) {
+            super(mensaje, causa);
+        }
+    }
+
+    /** 400: la API no aceptó algún campo de la petición. */
+    private static class PeticionRechazadaException extends LlmNoDisponibleException {
+        PeticionRechazadaException(String mensaje, Throwable causa) {
             super(mensaje, causa);
         }
     }
